@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.env
+
+# Node / Expo
+node_modules/
+.expo/
+dist/
+web-build/
+*.tsbuildinfo
+
+# Misc
+.DS_Store
+*.log
+*.db
+*.sqlite3
