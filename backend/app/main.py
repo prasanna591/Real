@@ -28,6 +28,18 @@ def create_app() -> FastAPI:
 
     app.include_router(api_router)
 
+    @app.get("/", tags=["meta"])
+    def root():
+        return {
+            "name": settings.app_name,
+            "version": app.version,
+            "description": app.description,
+            "docs": "/docs",
+            "openapi": "/openapi.json",
+            "health": "/health",
+            "api_base": "/api/v1",
+        }
+
     @app.get("/health", tags=["meta"])
     def health():
         return {"status": "ok"}

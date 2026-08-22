@@ -38,21 +38,35 @@ def seed() -> None:
         db.add(project)
         db.flush()
 
-        for media_type, title in [
-            ("model_3d", "Aurora Skyline 3D walkthrough"),
-            ("floor_plan", "3BHK floor plan"),
-            ("photo", "Facade render"),
-            ("capture_360", "Living room 360"),
-            ("ar_pack", "Furniture AR pack"),
-        ]:
-            db.add(
-                MediaAsset(
-                    project_id=project.id,
-                    media_type=media_type,
-                    title=title,
-                    url=f"https://cdn.example.com/aurora-skyline/{media_type}.glb",
-                )
-            )
+        media = [
+            (
+                "photo",
+                "Facade render",
+                "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?q=80&w=1600&auto=format&fit=crop",
+            ),
+            (
+                "capture_360",
+                "Living room 360",
+                "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?q=80&w=1600&auto=format&fit=crop",
+            ),
+            (
+                "photo",
+                "Master bedroom",
+                "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?q=80&w=1600&auto=format&fit=crop",
+            ),
+            (
+                "floor_plan",
+                "3BHK floor plan",
+                "https://images.unsplash.com/photo-1503387762-592deb58ef4e?q=80&w=1600&auto=format&fit=crop",
+            ),
+            (
+                "model_3d",
+                "Aurora Skyline 3D walkthrough",
+                "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=1600&auto=format&fit=crop",
+            ),
+        ]
+        for media_type, title, url in media:
+            db.add(MediaAsset(project_id=project.id, media_type=media_type, title=title, url=url))
 
         tower = Tower(project_id=project.id, name="Tower A")
         db.add(tower)
