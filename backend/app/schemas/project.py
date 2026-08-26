@@ -49,6 +49,10 @@ class TowerCreate(BaseModel):
     name: str = Field(min_length=1, max_length=50)
 
 
+class TowerUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=50)
+
+
 class TowerRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -59,6 +63,10 @@ class TowerRead(BaseModel):
 
 class FloorCreate(BaseModel):
     number: int = Field(ge=0)
+
+
+class FloorUpdate(BaseModel):
+    number: Optional[int] = Field(None, ge=0)
 
 
 class FloorRead(BaseModel):
@@ -96,6 +104,46 @@ class UnitRead(UnitBase):
 
     id: int
     floor_id: int
+
+
+# --- 3D tour ---
+class TourViewpointCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+    description: str = Field(default="", max_length=300)
+    target_x: float = 0
+    target_y: float = Field(1.2, ge=0, le=50)
+    target_z: float = -1
+    distance: float = Field(7, gt=0.5, le=100)
+    yaw: float = Field(0, ge=-6.2832, le=6.2832)
+    pitch: float = Field(0.32, ge=0.01, le=1.5)
+    position: int = Field(0, ge=0)
+
+
+class TourViewpointUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=80)
+    description: Optional[str] = Field(None, max_length=300)
+    target_x: Optional[float] = None
+    target_y: Optional[float] = Field(None, ge=0, le=50)
+    target_z: Optional[float] = None
+    distance: Optional[float] = Field(None, gt=0.5, le=100)
+    yaw: Optional[float] = Field(None, ge=-6.2832, le=6.2832)
+    pitch: Optional[float] = Field(None, ge=0.01, le=1.5)
+    position: Optional[int] = Field(None, ge=0)
+
+
+class TourViewpointRead(TourViewpointCreate):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    project_id: int
+
+
+class TourConfig(BaseModel):
+    """Resolved walkthrough payload consumed by the mobile 3D tour screen."""
+
+    project_id: int
+    model_url: Optional[str] = None
+    viewpoints: list[TourViewpointRead]
 
 
 # --- Media ---

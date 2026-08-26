@@ -9,6 +9,8 @@ from app.models import (
     BuilderUser,
     CustomerUser,
     Enquiry,
+    EnquiryNote,
+    EnquiryStatus,
     EventType,
     Project,
     SavedItem,
@@ -21,12 +23,15 @@ from app.schemas import (
     CustomerUserCreate,
     CustomerUserRead,
     EnquiryCreate,
+    EnquiryNoteCreate,
+    EnquiryNoteRead,
     EnquiryRead,
     EnquiryStatusUpdate,
     SavedItemCreate,
     SavedItemRead,
     SiteVisitCreate,
     SiteVisitRead,
+    SiteVisitUpdate,
 )
 
 router = APIRouter(tags=["engagement"])
@@ -108,6 +113,16 @@ def create_enquiry(payload: EnquiryCreate, db: Session = Depends(get_db)):
     _log(db, EventType.ENQUIRY, payload.project_id, payload.unit_id)
     db.commit()
     db.refresh(enquiry)
+
+    # Log notification intent (actual sending handled by ARQ worker)
+    import structlog
+    structlog.get_logger("engagement").info(
+        "enquiry_created",
+        enquiry_id=enquiry.id,
+        project_id=enquiry.project_id,
+        buyer=enquiry.name,
+    )
+
     return enquiry
 
 
@@ -151,6 +166,18 @@ def list_site_visits(project_id: int | None = Query(None), db: Session = Depends
     if project_id is not None:
         stmt = stmt.where(SiteVisit.project_id == project_id)
     return list(db.scalars(stmt))
+
+
+@router.patch("/site-visits/{visit_id}", response_model=SiteVisitRead)
+def update_site_visit(visit_id: int, payload: SiteVisitUpdate, db: Session = Depends(get_db), _builder: BuilderUser = Depends(get_current_builder)):
+    visit = db.get(SiteVisit, visit_id)
+    if not visit:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Site visit not found")
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(visit, field, value)
+    db.commit()
+    db.refresh(visit)
+    return visit
 
 
 # --- Analytics ---
@@ -217,4 +244,45 @@ def analytics_summary(project_id: int, db: Session = Depends(get_db), _builder: 
         saves=event_count(EventType.SAVE),
         enquiries=enquiries,
         site_visits=visits,
+        assistant_messages=event_count(EventType.ASSISTANT_MESSAGE),
+    )
+
+
+# --- Enquiry Notes ---
+@router.post("/enquiries/{enquiry_id}/notes", response_model=EnquiryNoteRead, status_code=status.HTTP_201_CREATED)
+def add_enquiry_note(
+    enquiry_id: int,
+    payload: EnquiryNoteCreate,
+    db: Session = Depends(get_db),
+    builder: BuilderUser = Depends(get_current_builder),
+):
+    enquiry = db.get(Enquiry, enquiry_id)
+    if not enquiry:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Enquiry not found")
+    note = EnquiryNote(
+        enquiry_id=enquiry_id,
+        builder_id=builder.id,
+        content=payload.content,
+    )
+    db.add(note)
+    db.commit()
+    db.refresh(note)
+    return note
+
+
+@router.get("/enquiries/{enquiry_id}/notes", response_model=list[EnquiryNoteRead])
+def list_enquiry_notes(
+    enquiry_id: int,
+    db: Session = Depends(get_db),
+    _builder: BuilderUser = Depends(get_current_builder),
+):
+    enquiry = db.get(Enquiry, enquiry_id)
+    if not enquiry:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Enquiry not found")
+    return list(
+        db.scalars(
+            select(EnquiryNote)
+            .where(EnquiryNote.enquiry_id == enquiry_id)
+            .order_by(EnquiryNote.created_at.desc())
+        )
     )

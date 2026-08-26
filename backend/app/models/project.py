@@ -41,6 +41,9 @@ class Project(Base, TimestampMixin):
     status: Mapped[ProjectStatus] = mapped_column(
         Enum(ProjectStatus, native_enum=False), default=ProjectStatus.DRAFT, index=True
     )
+    builder_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("builder_users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
     towers: Mapped[list["Tower"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     media: Mapped[list["MediaAsset"]] = relationship(back_populates="project", cascade="all, delete-orphan")
@@ -89,3 +92,21 @@ class Unit(Base, TimestampMixin):
     )
 
     floor: Mapped[Floor] = relationship(back_populates="units")
+
+
+class TourViewpoint(Base, TimestampMixin):
+    """Camera stop inside a project's 3D walkthrough (consumed by the mobile app)."""
+
+    __tablename__ = "tour_viewpoints"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    project_id: Mapped[int] = mapped_column(ForeignKey("projects.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(80))
+    description: Mapped[str] = mapped_column(String(300), default="")
+    target_x: Mapped[float] = mapped_column(default=0)
+    target_y: Mapped[float] = mapped_column(default=1.2)
+    target_z: Mapped[float] = mapped_column(default=-1)
+    distance: Mapped[float] = mapped_column(default=7)
+    yaw: Mapped[float] = mapped_column(default=0)
+    pitch: Mapped[float] = mapped_column(default=0.32)
+    position: Mapped[int] = mapped_column(default=0)  # ordering within the tour

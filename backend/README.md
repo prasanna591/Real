@@ -27,7 +27,6 @@ The database (`proptech.db`) is created automatically on startup via `Base.metad
 | `python scripts/create_builder.py "<name>" <email> <password>` | Create a builder account for the dashboard/auth |
 
 ## Environment Variables (`.env`)
-
 | Key | Default | Notes |
 |---|---|---|
 | `DATABASE_URL` | `sqlite:///./proptech.db` | Use PostgreSQL in production |
@@ -35,7 +34,9 @@ The database (`proptech.db`) is created automatically on startup via `Base.metad
 | `JWT_SECRET_KEY` | `change-me-in-production` | **Set a real secret before deploying** — `openssl rand -hex 32` |
 | `JWT_ALGORITHM` | `HS256` | |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `720` | Token lifetime |
-| `S3_*`, `POSTHOG_KEY`, `OPENAI_API_KEY` | empty | Reserved for upcoming phases |
+| `S3_*`, `POSTHOG_KEY` | empty | Reserved for upcoming phases |
+| `OPENAI_API_KEY` | empty | Enables the LLM-powered assistant (with `AI_MODEL`) |
+| `AI_MODEL` | auto | pydantic-ai model string, e.g. `openai:gpt-4o-mini`. Empty → `openai:gpt-4o-mini` when an OpenAI key is set; with neither, the deterministic DB-grounded fallback engine answers |
 
 ## Authentication
 
@@ -78,13 +79,15 @@ curl localhost:8000/api/v1/projects -H "Authorization: Bearer <token>"
 | GET | `/projects/{id}` | Single project |
 | PATCH 🔒 / DELETE 🔒 | `/projects/{id}` | Update / delete (cascades children) |
 | GET / POST 🔒 | `/projects/{id}/towers` | List / create towers |
+| PATCH 🔒 / DELETE 🔒 | `/projects/{id}/towers/{tower_id}` | Rename tower / delete (cascades floors + units) |
 | GET / POST 🔒 | `/projects/{id}/towers/{tower_id}/floors` | List / create floors |
-| GET | `/projects/{id}/units?status&min_bhk&max_price` | Units across towers, ordered tower→floor→unit |
+| PATCH 🔒 / DELETE 🔒 | `/projects/{id}/towers/{tower_id}/floors/{floor_id}` | Renumber floor / delete (cascades units) |
+| GET | `/projects/{id}/units?status&min_bhk&max_price&floor_id` | Units across towers, ordered tower→floor→unit |
 | GET | `/projects/{id}/units/{unit_id}` | Single unit (validates hierarchy) |
 | POST 🔒 | `/projects/{id}/towers/{tower_id}/floors/{floor_id}/units` | Create unit |
-| PATCH 🔒 | `/projects/{id}/units/{unit_id}` | Update unit (price/status/bhk…) |
+| PATCH 🔒 / DELETE 🔒 | `/projects/{id}/units/{unit_id}` | Update unit (price/status/bhk…) / delete unit |
 | GET | `/projects/{id}/media?media_type` | Media assets (model_3d, floor_plan, photo, capture_360, ar_pack, interior_set) |
-| POST 🔒 | `/projects/{id}/media` | Register media asset by URL |
+| POST 🔒 / DELETE 🔒 | `/projects/{id}/media/{asset_id}` | Register media asset by URL / remove it |
 
 ### Engagement (customer)
 | Method | Path | Description |
@@ -95,7 +98,13 @@ curl localhost:8000/api/v1/projects -H "Authorization: Bearer <token>"
 | DELETE | `/saved/{item_id}?session_id=` | Remove from shortlist (logs `unsave`) |
 | POST | `/enquiries` | Submit enquiry (logs `enquiry` event) |
 | POST | `/site-visits` | Book site visit (logs `site_visit_booked` event) |
-| POST | `/analytics/events` | Track client event (202; types: view, walkthrough_complete, save, unsave, enquiry, site_visit_booked, booking) |
+| POST | `/analytics/events` | Track client event (202; types: view, walkthrough_complete, save, unsave, enquiry, site_visit_booked, booking, assistant_message) |
+
+### AI assistant
+| Method | Path | Description |
+|---|---|---|
+| POST | `/assistant/chat` | Grounded Q&A over live listing data (budget search, units, EMI, family fit, views). Uses the pydantic-ai LLM agent when `AI_MODEL`/`OPENAI_API_KEY` is set; otherwise a deterministic DB-grounded rule engine answers. Logs `assistant_message` per turn. |
+| GET | `/assistant/status` | `{llm_enabled, fallback}` |
 
 ### Engagement (builder) 🔒
 | Method | Path | Description |
@@ -103,19 +112,31 @@ curl localhost:8000/api/v1/projects -H "Authorization: Bearer <token>"
 | GET 🔒 | `/enquiries?project_id` | Lead inbox (newest first) |
 | PATCH 🔒 | `/enquiries/{id}` | Move pipeline: new → contacted → qualified → site_visit → booked → closed (`booked` logs `booking` event) |
 | GET 🔒 | `/site-visits?project_id` | Visits by schedule |
-| GET 🔒 | `/projects/{id}/analytics/summary` | `{property_views, serious_explorers, saves, enquiries, site_visits}` |
+| PATCH 🔒 | `/site-visits/{id}` | Update visit: status (scheduled/completed/cancelled) and/or `scheduled_at` |
+| GET 🔒 | `/projects/{id}/analytics/summary` | `{property_views, serious_explorers, saves, enquiries, site_visits, assistant_messages}` |
+
+### Builder console 🔒
+| Method | Path | Description |
+|---|---|---|
+| GET 🔒 | `/builder/projects` | All projects with unit counts + availability |
+| GET 🔒 | `/builder/projects/{id}/pipeline` | Enquiries + site visits for one project |
 
 ## Project Structure
 
 ```
 app/
 ├── main.py                 App factory, CORS, startup table creation
+├── ai/
+│   ├── agent.py            pydantic-ai agent (typed DB-grounded tools)
+│   ├── fallback.py         deterministic intent engine (no LLM key needed)
+│   └── grounding.py        shared query layer: search/snapshot/units/EMI
 ├── api/
 │   ├── deps.py             get_current_builder dependency (OAuth2 bearer)
 │   └── routes/
 │       ├── auth.py         register / login / me
 │       ├── projects.py     catalog hierarchy + media
-│       └── engagement.py   users, saved, enquiries, visits, analytics
+│       ├── engagement.py   users, saved, enquiries, visits, analytics
+│       └── assistant.py    POST /assistant/chat, GET /assistant/status
 ├── core/
 │   ├── config.py           pydantic-settings (.env)
 │   ├── database.py         engine, SessionLocal, get_db

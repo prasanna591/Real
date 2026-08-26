@@ -1,15 +1,43 @@
+import re
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.engagement import EnquiryStatus, VisitStatus
+
+_PHONE_RE = re.compile(r"^\+?[\d\s\-()]{7,20}$")
+_EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
 
 
 class CustomerUserCreate(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     phone: str = Field(min_length=8, max_length=20)
     email: str = ""
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        v = v.strip()
+        if not _PHONE_RE.match(v):
+            raise ValueError("Invalid phone number format")
+        return v
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Name cannot be blank")
+        return v
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        v = v.strip()
+        if v and not _EMAIL_RE.match(v):
+            raise ValueError("Invalid email format")
+        return v
 
 
 class CustomerUserRead(BaseModel):
@@ -49,6 +77,35 @@ class EnquiryCreate(BaseModel):
     email: str = ""
     message: str = ""
 
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        v = v.strip()
+        if not _PHONE_RE.match(v):
+            raise ValueError("Invalid phone number format")
+        return v
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Name cannot be blank")
+        return v
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        v = v.strip()
+        if v and not _EMAIL_RE.match(v):
+            raise ValueError("Invalid email format")
+        return v
+
+    @field_validator("message")
+    @classmethod
+    def validate_message(cls, v: str) -> str:
+        return v.strip()[:2000]
+
 
 class EnquiryRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -76,6 +133,22 @@ class SiteVisitCreate(BaseModel):
     visitor_phone: str = Field(min_length=8, max_length=20)
     scheduled_at: datetime
 
+    @field_validator("visitor_phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        v = v.strip()
+        if not _PHONE_RE.match(v):
+            raise ValueError("Invalid phone number format")
+        return v
+
+    @field_validator("visitor_name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Name cannot be blank")
+        return v
+
 
 class SiteVisitRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -90,8 +163,13 @@ class SiteVisitRead(BaseModel):
     status: VisitStatus
 
 
+class SiteVisitUpdate(BaseModel):
+    status: Optional[VisitStatus] = None
+    scheduled_at: Optional[datetime] = None
+
+
 class AnalyticsEventCreate(BaseModel):
-    event_type: str = Field(pattern="^(view|walkthrough_complete|save|unsave|enquiry|site_visit_booked|booking)$")
+    event_type: str = Field(pattern="^(view|walkthrough_complete|save|unsave|enquiry|site_visit_booked|booking|assistant_message)$")
     project_id: int
     unit_id: Optional[int] = None
     session_id: str = ""
@@ -103,3 +181,23 @@ class AnalyticsSummary(BaseModel):
     saves: int
     enquiries: int
     site_visits: int
+    assistant_messages: int = 0
+
+
+class EnquiryNoteCreate(BaseModel):
+    content: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("content")
+    @classmethod
+    def validate_content(cls, v: str) -> str:
+        return v.strip()
+
+
+class EnquiryNoteRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    enquiry_id: int
+    builder_id: int
+    content: str
+    created_at: datetime

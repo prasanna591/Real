@@ -1,9 +1,19 @@
-from app.models.project import Floor, Project, ProjectStatus, PropertyType, Tower, Unit, UnitStatus
+from app.models.project import (
+    Floor,
+    Project,
+    ProjectStatus,
+    PropertyType,
+    TourViewpoint,
+    Tower,
+    Unit,
+    UnitStatus,
+)
 from app.models.media import MediaAsset, MediaType
 from app.models.user import BuilderRole, BuilderUser, CustomerUser
 from app.models.engagement import (
     AnalyticsEvent,
     Enquiry,
+    EnquiryNote,
     EnquiryStatus,
     EventType,
     SavedItem,
@@ -19,6 +29,7 @@ __all__ = [
     "Floor",
     "Unit",
     "UnitStatus",
+    "TourViewpoint",
     "MediaAsset",
     "MediaType",
     "CustomerUser",
@@ -26,6 +37,7 @@ __all__ = [
     "BuilderRole",
     "SavedItem",
     "Enquiry",
+    "EnquiryNote",
     "EnquiryStatus",
     "SiteVisit",
     "VisitStatus",

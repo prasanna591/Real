@@ -47,6 +47,8 @@ class Enquiry(Base, TimestampMixin):
         Enum(EnquiryStatus, native_enum=False), default=EnquiryStatus.NEW, index=True
     )
 
+    notes: Mapped[list["EnquiryNote"]] = relationship(back_populates="enquiry", cascade="all, delete-orphan")
+
 
 class VisitStatus(StrEnum):
     SCHEDULED = "scheduled"
@@ -77,6 +79,20 @@ class EventType(StrEnum):
     ENQUIRY = "enquiry"
     SITE_VISIT_BOOKED = "site_visit_booked"
     BOOKING = "booking"
+    ASSISTANT_MESSAGE = "assistant_message"
+
+
+class EnquiryNote(Base, TimestampMixin):
+    """Internal note/comment on an enquiry by the builder sales team."""
+
+    __tablename__ = "enquiry_notes"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    enquiry_id: Mapped[int] = mapped_column(ForeignKey("enquiries.id", ondelete="CASCADE"), index=True)
+    builder_id: Mapped[int] = mapped_column(ForeignKey("builder_users.id", ondelete="CASCADE"), index=True)
+    content: Mapped[str] = mapped_column(Text)
+
+    enquiry: Mapped["Enquiry"] = relationship(back_populates="notes")
 
 
 class AnalyticsEvent(Base):
