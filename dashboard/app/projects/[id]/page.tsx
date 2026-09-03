@@ -8,6 +8,7 @@ import { AnalyticsTab } from "@/components/tabs/analytics-tab";
 import { InventoryTab } from "@/components/tabs/inventory-tab";
 import { LeadsTab } from "@/components/tabs/leads-tab";
 import { MediaTab } from "@/components/tabs/media-tab";
+import { ScansTab } from "@/components/tabs/scans-tab";
 import { Badge, ErrorNote, Spinner } from "@/components/ui";
 import { AppShell } from "@/components/shell";
 import { requireApi, type Project, type ProjectStatus } from "@/lib/api";
@@ -17,6 +18,7 @@ const TABS = [
   { key: "leads", label: "Leads & visits" },
   { key: "inventory", label: "Inventory" },
   { key: "media", label: "Media" },
+  { key: "scans", label: "Room scans" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -134,6 +136,7 @@ export default function ProjectDetailPage() {
           {tab === "leads" ? <LeadsTab projectId={projectId} /> : null}
           {tab === "inventory" ? <InventoryTab projectId={project.id} onMutate={reload} /> : null}
           {tab === "media" ? <MediaTab projectId={projectId} /> : null}
+          {tab === "scans" ? <ScansTab projectId={projectId} /> : null}
         </>
       ) : null}
     </AppShell>

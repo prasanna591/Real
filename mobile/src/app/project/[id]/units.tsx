@@ -14,6 +14,7 @@ import { listFloors, listTowers, listUnits } from '@/services/api';
 import type { Floor, Tower, Unit, UnitStatus } from '@/types/api';
 
 type StatusFilter = 'all' | 'available';
+type SortKey = 'none' | 'price-asc' | 'price-desc' | 'bhk';
 
 interface FloorUnits {
   tower: Tower;
@@ -26,6 +27,13 @@ const STATUS_COLORS: Record<UnitStatus, string> = {
   sold: '#c94f4f',
 };
 
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: 'none', label: 'Default' },
+  { key: 'price-asc', label: 'Price ↑' },
+  { key: 'price-desc', label: 'Price ↓' },
+  { key: 'bhk', label: 'BHK' },
+];
+
 export default function UnitsScreen() {
   const params = useLocalSearchParams<{ id: string; projectName?: string }>();
   const projectId = Number(params.id);
@@ -36,6 +44,7 @@ export default function UnitsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<StatusFilter>('all');
+  const [sort, setSort] = useState<SortKey>('none');
   const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
 
   const load = useCallback(async () => {
@@ -106,8 +115,7 @@ export default function UnitsScreen() {
     );
   }, [groups, filter]);
 
-  const openWith = (screen: '/enquiry' | '/book-visit') => {
-    if (!selectedUnit) return;
+  const openWith = (screen: '/enquiry' | '/book-visit') => {    if (!selectedUnit) return;
     router.push({
       pathname: screen,
       params: {
@@ -132,26 +140,49 @@ export default function UnitsScreen() {
             </Pressable>
           </View>
 
-          <ThemedView type="background" style={styles.filterBar}>
-            {(['all', 'available'] as StatusFilter[]).map((option) => (
-              <Pressable
-                key={option}
-                accessibilityRole="button"
-                onPress={() => setFilter(option)}
-                style={[
-                  styles.filterChip,
-                  {
-                    backgroundColor:
-                      filter === option ? theme.text : theme.backgroundElement,
-                  },
-                ]}>
-                <ThemedText
-                  type="smallBold"
-                  style={{ color: filter === option ? theme.background : theme.text }}>
-                  {option === 'all' ? 'All units' : `Available${visibleCount != null ? ` (${visibleCount})` : ''}`}
-                </ThemedText>
-              </Pressable>
-            ))}
+          <ThemedView type="background" style={styles.filterWrap}>
+            <View style={styles.filterRow}>
+              {(['all', 'available'] as StatusFilter[]).map((option) => (
+                <Pressable
+                  key={option}
+                  accessibilityRole="button"
+                  onPress={() => setFilter(option)}
+                  style={[
+                    styles.filterChip,
+                    {
+                      backgroundColor:
+                        filter === option ? theme.text : theme.backgroundElement,
+                    },
+                  ]}>
+                  <ThemedText
+                    type="smallBold"
+                    style={{ color: filter === option ? theme.background : theme.text }}>
+                    {option === 'all' ? 'All units' : `Available${visibleCount != null ? ` (${visibleCount})` : ''}`}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
+            <View style={styles.filterRow}>
+              {SORT_OPTIONS.map((option) => (
+                <Pressable
+                  key={option.key}
+                  accessibilityRole="button"
+                  onPress={() => setSort(option.key)}
+                  style={[
+                    styles.filterChip,
+                    {
+                      backgroundColor:
+                        sort === option.key ? theme.text : theme.backgroundElement,
+                    },
+                  ]}>
+                  <ThemedText
+                    type="smallBold"
+                    style={{ color: sort === option.key ? theme.background : theme.text }}>
+                    {option.label}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
           </ThemedView>
 
           <ThemedText type="subtitle">{params.projectName ?? 'Units'}</ThemedText>
@@ -181,6 +212,18 @@ export default function UnitsScreen() {
                   <View style={styles.unitGrid}>
                     {units
                       .filter((unit) => filter === 'all' || unit.status === filter)
+                      .sort((a, b) => {
+                        switch (sort) {
+                          case 'price-asc':
+                            return Number(a.price) - Number(b.price);
+                          case 'price-desc':
+                            return Number(b.price) - Number(a.price);
+                          case 'bhk':
+                            return a.bhk - b.bhk || Number(a.price) - Number(b.price);
+                          default:
+                            return 0;
+                        }
+                      })
                       .map((unit) => {
                         const isSelected = selectedUnit?.id === unit.id;
                         return (
@@ -275,10 +318,13 @@ const styles = StyleSheet.create({
   topRow: {
     paddingTop: Spacing.two,
   },
-  filterBar: {
-    flexDirection: 'row',
+  filterWrap: {
     gap: Spacing.two,
     paddingVertical: Spacing.two,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
   },
   filterChip: {
     borderRadius: 999,

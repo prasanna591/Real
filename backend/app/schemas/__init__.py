@@ -47,6 +47,7 @@ from app.schemas.uploads import (
     PresignedUploadRequest,
     PresignedUploadResponse,
 )
+from app.schemas.room_scan import RoomScanCreate, RoomScanRead
 
 __all__ = [
     "BuilderLogin", "BuilderRead", "BuilderRegister", "TokenResponse",
@@ -63,4 +64,5 @@ __all__ = [
     "AnalyticsEventCreate", "AnalyticsSummary",
     "AssistantChatRequest", "AssistantChatResponse", "ChatMessage", "ChatRole",
     "PresignedUploadRequest", "PresignedUploadResponse", "MediaRegisterRequest",
+    "RoomScanCreate", "RoomScanRead",
 ]

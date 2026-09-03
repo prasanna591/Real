@@ -208,3 +208,16 @@ export interface Pipeline {
     status: string;
   }>;
 }
+
+export interface RoomScan {
+  id: number;
+  project_id: number;
+  client_scan_id: string;
+  name: string;
+  keyframe_count: number;
+  coverage_percent: number;
+  duration_ms: number;
+  thumbnail_url: string | null;
+  photo_urls: string[];
+  created_at: string;
+}

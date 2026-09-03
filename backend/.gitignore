@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.env
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Runtime media uploads (created at runtime; gitignored)
+media/
+proptech.db

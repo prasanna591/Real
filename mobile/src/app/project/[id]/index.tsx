@@ -153,6 +153,10 @@ export default function ProjectDetailsScreen() {
               onPress={() => router.push(`/project/${projectId}/tour`)}
             />
             <SecondaryButton
+              label="📷  Room scan"
+              onPress={() => router.push(`/project/${projectId}/room-scan?name=${encodeURIComponent(project.name)}`)}
+            />
+            <SecondaryButton
               label="🌐 360° view"
               onPress={() => router.push(`/project/${projectId}/panorama`)}
             />

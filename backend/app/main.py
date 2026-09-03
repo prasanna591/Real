@@ -6,6 +6,8 @@ import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api import api_router
@@ -31,7 +33,7 @@ settings = get_settings()
 def _check_db_health() -> dict:
     try:
         with SessionLocal() as db:
-            db.execute("SELECT 1")
+            db.execute(text("SELECT 1"))
         return {"database": "ok"}
     except Exception as exc:
         return {"database": f"error: {exc}"}
@@ -111,6 +113,9 @@ def create_app() -> FastAPI:
         return response
 
     app.include_router(api_router)
+
+    settings.media_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/media", StaticFiles(directory=settings.media_dir), name="media")
 
     @app.get("/", tags=["meta"])
     def root():

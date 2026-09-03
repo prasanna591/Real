@@ -20,6 +20,10 @@ export function setAuthTokenProvider(provider: () => string | null): void {
   authTokenProvider = provider;
 }
 
+export function getAuthToken(): string | null {
+  return authTokenProvider?.() ?? null;
+}
+
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;

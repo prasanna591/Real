@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import model_validator
 from pydantic_settings import BaseSettings
@@ -16,6 +17,10 @@ class Settings(BaseSettings):
     s3_bucket: str = "proptech-media"
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
+
+    # Local media storage (used for room-scan uploads when S3 is not configured)
+    media_dir: Path = Path("./media")
+    public_base_url: str = ""
 
     posthog_key: str = ""
     sentry_dsn: str = ""

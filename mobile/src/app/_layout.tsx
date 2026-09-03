@@ -25,6 +25,11 @@ export default function RootLayout() {
               <Stack.Screen name="project/[id]/units" />
               <Stack.Screen name="project/[id]/tour" />
               <Stack.Screen
+                name="project/[id]/room-scan"
+                options={{ headerShown: false, presentation: 'fullScreenModal' }}
+              />
+              <Stack.Screen name="project/[id]/room-walkthrough" />
+              <Stack.Screen
                 name="builder/login"
                 options={{ headerShown: true, title: 'Builder sign in' }}
               />

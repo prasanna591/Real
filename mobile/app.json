@@ -8,10 +8,18 @@
     "scheme": "proptech",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "bundleIdentifier": "com.proptech.homes"
+      "bundleIdentifier": "com.proptech.homes",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Used for AR room scanning and walkthrough recording.",
+        "NSMotionUsageDescription": "Used to track device orientation during room scans."
+      }
     },
     "android": {
       "package": "com.proptech.homes",
+      "permissions": [
+        "CAMERA",
+        "android.permission.CAMERA"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#EA580C",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -27,6 +35,8 @@
     },
     "plugins": [
       "expo-router",
+      ["expo-camera", { "cameraPermission": "Allow $(PRODUCT_NAME) to use the camera for room scanning." }],
+      "expo-sensors",
       [
         "expo-splash-screen",
         {

@@ -9,6 +9,7 @@ from app.models.project import (
     UnitStatus,
 )
 from app.models.media import MediaAsset, MediaType
+from app.models.room_scan import RoomScan
 from app.models.user import BuilderRole, BuilderUser, CustomerUser
 from app.models.engagement import (
     AnalyticsEvent,
@@ -32,6 +33,7 @@ __all__ = [
     "TourViewpoint",
     "MediaAsset",
     "MediaType",
+    "RoomScan",
     "CustomerUser",
     "BuilderUser",
     "BuilderRole",
