@@ -25,3 +25,11 @@ htmlcov/
 # Misc
 .DS_Store
 *.log
+*.apk
+*.aab
+android/app/build/
+android/.gradle/
+*.apk
+*.aab
+android/app/build/
+android/.gradle/
