@@ -43,9 +43,22 @@ export default function NewProjectPage() {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
+    const price = form.starting_price ? Number(form.starting_price) : null;
+    if (price !== null && (Number.isNaN(price) || price < 0)) {
+      setError("Starting price must be a non-negative number");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
+      const amenities = [
+        ...new Set(
+          form.amenities
+            .split(",")
+            .map((item) => item.trim().toLowerCase().replace(/\s+/g, "_"))
+            .filter(Boolean),
+        ),
+      ];
       const project = await requireApi<Project>("/api/v1/projects", {
         method: "POST",
         body: {
@@ -54,12 +67,9 @@ export default function NewProjectPage() {
           property_type: form.property_type,
           city: form.city.trim(),
           locality: form.locality.trim(),
-          starting_price: form.starting_price ? Number(form.starting_price) : null,
+          starting_price: price,
           possession_date: form.possession_date || null,
-          amenities: form.amenities
-            .split(",")
-            .map((item) => item.trim().toLowerCase().replaceAll(" ", "_"))
-            .filter(Boolean),
+          amenities,
           description: form.description.trim(),
         },
       });
@@ -73,7 +83,7 @@ export default function NewProjectPage() {
 
   return (
     <AppShell>
-      <h1 className="text-xl font-semibold text-slate-900">New project</h1>
+      <h1 className="font-serif text-2xl font-semibold tracking-tight text-slate-900">New project</h1>
       <p className="mb-6 text-sm text-slate-500">Create a project, then add towers, floors and units.</p>
 
       <Card className="max-w-2xl p-6">
@@ -96,7 +106,7 @@ export default function NewProjectPage() {
               </select>
             </Field>
             <Field label="Starting price (₹)" hint="e.g. 12500000 for ₹1.25 Cr">
-              <input type="number" min="0" value={form.starting_price} onChange={set("starting_price")} placeholder="12500000" className={inputClass} />
+              <input type="number" min="0" step="any" value={form.starting_price} onChange={set("starting_price")} placeholder="12500000" className={inputClass} />
             </Field>
             <Field label="City">
               <input required value={form.city} onChange={set("city")} placeholder="Chennai" className={inputClass} />

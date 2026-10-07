@@ -15,7 +15,13 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 
-def problem_response(status: int, title: str, detail: str, type_url: str = "about:blank") -> JSONResponse:
+def problem_response(
+    status: int,
+    title: str,
+    detail: str,
+    type_url: str = "about:blank",
+    headers: dict | None = None,
+) -> JSONResponse:
     return JSONResponse(
         status_code=status,
         content={
@@ -24,16 +30,21 @@ def problem_response(status: int, title: str, detail: str, type_url: str = "abou
             "status": status,
             "detail": detail,
         },
+        headers=headers,
     )
 
 
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+        headers = None
+        if getattr(exc, "headers", None):
+            headers = dict(exc.headers)  # preserves e.g. WWW-Authenticate
         return problem_response(
             status=exc.status_code,
             title=_status_title(exc.status_code),
             detail=str(exc.detail),
+            headers=headers,
         )
 
     @app.exception_handler(RequestValidationError)

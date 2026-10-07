@@ -59,3 +59,27 @@ def test_list_room_scans_by_project(client: TestClient, project):
     body = resp.json()
     assert len(body) == 1
     assert body[0]["name"] == "Kitchen"
+
+
+def test_room_scan_sanitizes_traversal_id(client: TestClient, project):
+    malicious = "../../../.etc/evil"
+    files = [("photos", ("f.jpg", b"\xff\xd8\xff\xe0fakejpeg", "image/jpeg"))]
+    data = {"project_id": str(project.id), "client_scan_id": malicious}
+    resp = client.post("/api/v1/room-scans", data=data, files=files)
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert ".." not in body["client_scan_id"]
+    assert all(".." not in url for url in body["photo_urls"])
+    assert all(url.startswith("/media/room-scans/") for url in body["photo_urls"])
+    assert resp.status_code == 201
+
+
+def test_room_scan_rejects_out_of_range_coverage(client: TestClient, project):
+    files = [("photos", ("f.jpg", b"\xff\xd8\xff\xe0fakejpeg", "image/jpeg"))]
+    data = {
+        "project_id": str(project.id),
+        "client_scan_id": "scan_bad_coverage",
+        "coverage_percent": "500",
+    }
+    resp = client.post("/api/v1/room-scans", data=data, files=files)
+    assert resp.status_code == 422

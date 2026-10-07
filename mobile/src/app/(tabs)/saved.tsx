@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { PrimaryButton } from '@/components/primary-button';
+import { TextField } from '@/components/text-field';
+import { BottomTabInset, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useSaved } from '@/hooks/use-saved';
+import { useSession } from '@/lib/session';
 import { PROPERTY_TYPE_LABELS, formatPrice } from '@/lib/format';
-import { getProject, getUnit, listSaved } from '@/services/api';
+import { getProject, getUnit, listSaved, signIn as signInService } from '@/services/api';
 
 interface SavedRow {
   key: string;
@@ -60,8 +64,34 @@ export default function SavedScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { user, isLoading: sessionLoading, toggle } = useSaved();
+  const { signIn } = useSession();
   const [rows, setRows] = useState<SavedRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [isLoginSubmitting, setIsLoginSubmitting] = useState(false);
+
+  const handleOneTapLogin = useCallback(async () => {
+    if (name.trim().length < 1) {
+      Alert.alert('Name required', 'Please enter your name.');
+      return;
+    }
+    if (phone.trim().length < 8) {
+      Alert.alert('Phone required', 'Please enter a valid phone number.');
+      return;
+    }
+    setIsLoginSubmitting(true);
+    try {
+      const signedIn = await signInService(name.trim(), phone.trim(), email.trim());
+      await signIn(signedIn);
+    } catch (err) {
+      Alert.alert('Sign-in failed', err instanceof Error ? err.message : 'Please try again.');
+    } finally {
+      setIsLoginSubmitting(false);
+    }
+  }, [name, phone, email, signIn]);
 
   const load = useCallback(async () => {
     if (!user) {
@@ -80,22 +110,9 @@ export default function SavedScreen() {
   }, [user]);
 
   useEffect(() => {
-    let cancelled = false;
-    const rowsPromise = user ? hydrateRows(user.id) : Promise.resolve<SavedRow[]>([]);
-    rowsPromise
-      .then((nextRows) => {
-        if (!cancelled) setRows(nextRows);
-      })
-      .catch(() => {
-        if (!cancelled) setRows([]);
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- standard async data-fetch pattern
+    load();
+  }, [load]);
 
   if (sessionLoading || isLoading) {
     return (
@@ -114,11 +131,43 @@ export default function SavedScreen() {
             <ThemedText type="small" themeColor="textSecondary">
               Sign in to shortlist properties and units.
             </ThemedText>
+            <View style={styles.loginFields}>
+              <TextField
+                label="Name"
+                value={name}
+                onChangeText={setName}
+                placeholder="Your name"
+                autoCapitalize="words"
+              />
+              <TextField
+                label="Phone"
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="+91 …"
+                keyboardType="phone-pad"
+                autoCapitalize="none"
+              />
+              <TextField
+                label="Email (optional)"
+                value={email}
+                onChangeText={setEmail}
+                placeholder="you@example.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <PrimaryButton
+                label="Log in"
+                onPress={handleOneTapLogin}
+                loading={isLoginSubmitting}
+                disabled={isLoginSubmitting}
+              />
+            </View>
             <ThemedText
               type="linkPrimary"
               onPress={() => router.push('/(tabs)/account')}
-              style={{ marginTop: Spacing.two }}>
-              Go to Account →
+              style={{ marginTop: Spacing.one }}>
+              Manage account →
             </ThemedText>
           </ThemedView>
         </SafeAreaView>
@@ -156,16 +205,35 @@ export default function SavedScreen() {
                 </ThemedText>
               </View>
               <Pressable hitSlop={12} onPress={() => toggle({ projectId: item.projectId, unitId: item.unitId ?? undefined }).then(load)}>
-                <ThemedText type="smallBold" style={{ color: '#e0245e' }}>
+                <ThemedText type="smallBold" style={{ color: theme.danger }}>
                   Remove
                 </ThemedText>
               </Pressable>
             </Pressable>
           )}
           ListEmptyComponent={
-            <ThemedText type="small" themeColor="textSecondary">
-              Nothing saved yet. Explore projects and tap ♡ Save.
-            </ThemedText>
+            <View style={styles.emptyState}>
+              <View style={[styles.emptyIcon, { backgroundColor: theme.backgroundSelected }]}>
+                <Ionicons name="heart-outline" size={44} color={theme.primary} />
+              </View>
+              <ThemedText type="subtitle" style={{ textAlign: 'center' }}>
+                Nothing saved yet
+              </ThemedText>
+              <ThemedText
+                type="small"
+                themeColor="textSecondary"
+                style={{ textAlign: 'center' }}>
+                Explore projects and tap ♡ Save to shortlist your favourite homes.
+              </ThemedText>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => router.push('/(tabs)')}
+                style={[styles.exploreBtn, { backgroundColor: theme.primary }]}>
+                <ThemedText type="smallBold" style={{ color: '#FFFFFF' }}>
+                  Explore projects
+                </ThemedText>
+              </Pressable>
+            </View>
           }
         />
       </SafeAreaView>
@@ -201,6 +269,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
   },
+  loginFields: {
+    width: '100%',
+    gap: Spacing.two,
+    marginTop: Spacing.two,
+  },
   title: {
     fontSize: 34,
     lineHeight: 40,
@@ -222,5 +295,26 @@ const styles = StyleSheet.create({
   rowText: {
     flex: 1,
     gap: 2,
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: Spacing.six,
+    gap: Spacing.two,
+  },
+  emptyIcon: {
+    width: 96,
+    height: 96,
+    borderRadius: Radius.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.two,
+  },
+  exploreBtn: {
+    borderRadius: 999,
+    paddingHorizontal: Spacing.five,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Spacing.two,
   },
 });

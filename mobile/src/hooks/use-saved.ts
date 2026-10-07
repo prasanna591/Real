@@ -13,6 +13,7 @@ export function useSaved() {
   const refresh = useCallback(async () => {
     if (!user) {
       setItems([]);
+      setIsLoading(false);
       return;
     }
     setIsLoading(true);
@@ -26,22 +27,9 @@ export function useSaved() {
   }, [user]);
 
   useEffect(() => {
-    let cancelled = false;
-    const itemsPromise = user ? listSaved(user.id) : Promise.resolve<SavedItem[]>([]);
-    itemsPromise
-      .then((nextItems) => {
-        if (!cancelled) setItems(nextItems);
-      })
-      .catch(() => {
-        if (!cancelled) setItems([]);
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- standard async data-fetch pattern
+    refresh();
+  }, [refresh]);
 
   const keyOf = useCallback(
     (target: { projectId?: number; unitId?: number }) =>

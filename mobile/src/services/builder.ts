@@ -1,16 +1,24 @@
-import { http } from '@/lib/http';
+import { http, setAuthTokenProvider } from '@/lib/http';
 import type {
   AnalyticsSummary,
   BuilderPipeline,
   BuilderProjectSummary,
   BuilderSession,
+  BuilderUser,
   Floor,
   MediaAsset,
   Tower,
 } from '@/types/api';
 
-export function builderLogin(email: string, password: string): Promise<BuilderSession> {
-  return http.post<BuilderSession>('/auth/login', { email, password });
+export async function builderLogin(email: string, password: string): Promise<BuilderSession> {
+  const { access_token } = await http.post<{ access_token: string; token_type: string }>('/auth/login', {
+    email,
+    password,
+  });
+  // Make the fresh token active immediately so /auth/me below is authorized.
+  setAuthTokenProvider(() => access_token);
+  const user = await http.get<BuilderUser>('/auth/me');
+  return { token: access_token, user };
 }
 
 export function listBuilderProjects(): Promise<BuilderProjectSummary[]> {

@@ -99,6 +99,25 @@ class TestEnquiries:
         assert resp.status_code == 200
         assert resp.json()["status"] == "contacted"
 
+    def test_my_enquiries_by_phone(self, client, project):
+        client.post("/api/v1/enquiries", json={
+            "project_id": project.id,
+            "name": "My Buyer",
+            "phone": "+919876543220",
+        })
+        resp = client.get("/api/v1/enquiries/me", params={"phone": "+919876543220"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data) == 1
+        assert data[0]["project_id"] == project.id
+        assert data[0]["project_name"] == project.name
+        assert data[0]["status"] == "new"
+
+    def test_my_enquiries_unknown_phone_empty(self, client):
+        resp = client.get("/api/v1/enquiries/me", params={"phone": "+919999999999"})
+        assert resp.status_code == 200
+        assert resp.json() == []
+
 
 class TestSiteVisits:
     def test_create_site_visit(self, client, project):

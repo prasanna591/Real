@@ -30,6 +30,9 @@ from app.schemas.engagement import (
     EnquiryNoteRead,
     EnquiryRead,
     EnquiryStatusUpdate,
+    ListingRequestCreate,
+    ListingRequestRead,
+    MyEnquiryRead,
     SavedItemCreate,
     SavedItemRead,
     SiteVisitCreate,
@@ -48,6 +51,7 @@ from app.schemas.uploads import (
     PresignedUploadResponse,
 )
 from app.schemas.room_scan import RoomScanCreate, RoomScanRead
+from app.schemas.social import BuilderCard, FeedItem, FeedResponse, FollowCreate, FollowRead
 
 __all__ = [
     "BuilderLogin", "BuilderRead", "BuilderRegister", "TokenResponse",
@@ -57,12 +61,14 @@ __all__ = [
     "TourConfig", "TourViewpointCreate", "TourViewpointRead", "TourViewpointUpdate",
     "MediaAssetCreate", "MediaAssetRead", "MediaType",
     "CustomerUserCreate", "CustomerUserRead",
-    "EnquiryCreate", "EnquiryRead", "EnquiryStatusUpdate",
+    "EnquiryCreate", "EnquiryRead", "EnquiryStatusUpdate", "MyEnquiryRead",
     "EnquiryNoteCreate", "EnquiryNoteRead",
+    "ListingRequestCreate", "ListingRequestRead",
     "SavedItemCreate", "SavedItemRead",
     "SiteVisitCreate", "SiteVisitRead", "SiteVisitUpdate",
     "AnalyticsEventCreate", "AnalyticsSummary",
     "AssistantChatRequest", "AssistantChatResponse", "ChatMessage", "ChatRole",
     "PresignedUploadRequest", "PresignedUploadResponse", "MediaRegisterRequest",
     "RoomScanCreate", "RoomScanRead",
+    "BuilderCard", "FeedItem", "FeedResponse", "FollowCreate", "FollowRead",
 ]

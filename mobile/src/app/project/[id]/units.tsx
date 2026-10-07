@@ -7,11 +7,11 @@ import { PrimaryButton } from '@/components/primary-button';
 import { SecondaryButton } from '@/components/secondary-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Spacing, StatusColors } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatPrice } from '@/lib/format';
 import { listFloors, listTowers, listUnits } from '@/services/api';
-import type { Floor, Tower, Unit, UnitStatus } from '@/types/api';
+import type { Floor, Tower, Unit } from '@/types/api';
 
 type StatusFilter = 'all' | 'available';
 type SortKey = 'none' | 'price-asc' | 'price-desc' | 'bhk';
@@ -20,12 +20,6 @@ interface FloorUnits {
   tower: Tower;
   floors: { floor: Floor; units: Unit[] }[];
 }
-
-const STATUS_COLORS: Record<UnitStatus, string> = {
-  available: '#2e9e5b',
-  booked: '#e8a13c',
-  sold: '#c94f4f',
-};
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: 'none', label: 'Default' },
@@ -45,16 +39,26 @@ export default function UnitsScreen() {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<StatusFilter>('all');
   const [sort, setSort] = useState<SortKey>('none');
+  const [bhkFilter, setBhkFilter] = useState<number | null>(null);
   const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
+
+  const BHK_OPTIONS = [1, 2, 3, 4, 5];
 
   const load = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [towers, units] = await Promise.all([listTowers(projectId), listUnits(projectId)]);
+      const [towers, units] = await Promise.all([
+        listTowers(projectId),
+        listUnits(projectId, { minBhk: bhkFilter ?? undefined }),
+      ]);
+      const floorResults = await Promise.all(
+        towers.map((tower) => listFloors(projectId, tower.id))
+      );
+      const floorMap = new Map(towers.map((tower, i) => [tower.id, floorResults[i]]));
       const grouped: FloorUnits[] = [];
       for (const tower of towers.sort((a, b) => a.name.localeCompare(b.name))) {
-        const floors = await listFloors(projectId, tower.id);
+        const floors = floorMap.get(tower.id) ?? [];
         const floorGroups = floors
           .sort((a, b) => a.number - b.number)
           .map((floor) => ({
@@ -70,36 +74,12 @@ export default function UnitsScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, bhkFilter]);
 
   useEffect(() => {
-    let cancelled = false;
-    Promise.all([listTowers(projectId), listUnits(projectId)])
-      .then(async ([towers, units]) => {
-        const grouped: FloorUnits[] = [];
-        for (const tower of [...towers].sort((a, b) => a.name.localeCompare(b.name))) {
-          const floors = await listFloors(projectId, tower.id);
-          const floorGroups = floors
-            .sort((a, b) => a.number - b.number)
-            .map((floor) => ({
-              floor,
-              units: units.filter((unit) => unit.floor_id === floor.id),
-            }))
-            .filter((group) => group.units.length > 0);
-          if (floorGroups.length > 0 && !cancelled) grouped.push({ tower, floors: floorGroups });
-        }
-        if (!cancelled) setGroups(grouped);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : 'Failed to load units');
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- standard async data-fetch pattern
+    load();
+  }, [load]);
 
   const visibleCount = useMemo(() => {
     if (filter === 'all') return null;
@@ -183,6 +163,27 @@ export default function UnitsScreen() {
                 </Pressable>
               ))}
             </View>
+            <View style={styles.filterRow}>
+              {BHK_OPTIONS.map((bhk) => (
+                <Pressable
+                  key={bhk}
+                  accessibilityRole="button"
+                  onPress={() => setBhkFilter((prev) => (prev === bhk ? null : bhk))}
+                  style={[
+                    styles.filterChip,
+                    {
+                      backgroundColor:
+                        bhkFilter === bhk ? theme.text : theme.backgroundElement,
+                    },
+                  ]}>
+                  <ThemedText
+                    type="smallBold"
+                    style={{ color: bhkFilter === bhk ? theme.background : theme.text }}>
+                    {bhk}+ BHK
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
           </ThemedView>
 
           <ThemedText type="subtitle">{params.projectName ?? 'Units'}</ThemedText>
@@ -244,7 +245,7 @@ export default function UnitsScreen() {
                               <View
                                 style={[
                                   styles.statusDot,
-                                  { backgroundColor: STATUS_COLORS[unit.status] },
+                                  { backgroundColor: StatusColors[unit.status] },
                                 ]}
                               />
                             </View>

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import CurrentBuilder
 from app.core.database import get_db
-from app.models import AnalyticsEvent, Enquiry, EventType, Floor, Project, SiteVisit, TourViewpoint, Tower, Unit
+from app.models import AnalyticsEvent, Enquiry, EventType, Floor, Project, SiteVisit, Tower, Unit
 from app.schemas import AnalyticsSummary
 
 router = APIRouter(prefix="/builder", tags=["builder"])
@@ -79,6 +79,7 @@ def builder_portfolio_analytics(builder: CurrentBuilder, db: Session = Depends(g
             select(func.count()).select_from(SiteVisit).where(SiteVisit.project_id.in_(builder_project_ids))
         ) or 0,
         assistant_messages=events(EventType.ASSISTANT_MESSAGE),
+        shares=events(EventType.SHARE),
     )
 
 
@@ -91,17 +92,19 @@ def builder_pipeline(
     project = db.get(Project, project_id)
     if not project or project.builder_id != builder.id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
-    enquiries = (
-        db.query(Enquiry)
-        .filter(Enquiry.project_id == project_id)
-        .order_by(Enquiry.created_at.desc())
-        .all()
+    enquiries = list(
+        db.scalars(
+            select(Enquiry)
+            .where(Enquiry.project_id == project_id)
+            .order_by(Enquiry.created_at.desc())
+        )
     )
-    visits = (
-        db.query(SiteVisit)
-        .filter(SiteVisit.project_id == project_id)
-        .order_by(SiteVisit.scheduled_at.desc())
-        .all()
+    visits = list(
+        db.scalars(
+            select(SiteVisit)
+            .where(SiteVisit.project_id == project_id)
+            .order_by(SiteVisit.scheduled_at.desc())
+        )
     )
     return {
         "enquiries": [

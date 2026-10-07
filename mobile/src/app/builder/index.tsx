@@ -14,17 +14,11 @@ import { PrimaryButton } from '@/components/primary-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 
-import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Radius, Spacing, StatusColors } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useBuilderAuth } from '@/lib/builder-auth';
 import { listBuilderProjects } from '@/services/builder';
 import type { BuilderProjectSummary } from '@/types/api';
-
-const STATUS_COLORS: Record<string, string> = {
-  draft: '#D97706',
-  active: '#16A34A',
-  sold_out: '#DC2626',
-};
 
 export default function BuilderConsoleScreen() {
   const router = useRouter();
@@ -52,24 +46,9 @@ export default function BuilderConsoleScreen() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    if (!session) return;
-    listBuilderProjects()
-      .then((data) => {
-        if (cancelled) return;
-        setProjects(data);
-        setError(null);
-        setIsLoading(false);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Could not load projects.');
-        setIsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [session]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- standard async data-fetch pattern
+    if (session) load();
+  }, [session, load]);
 
   if (authLoading || !session) {
     return (
@@ -122,11 +101,11 @@ export default function BuilderConsoleScreen() {
                       <View
                         style={[
                           styles.statusPill,
-                          { backgroundColor: `${STATUS_COLORS[item.status ?? 'draft'] ?? theme.textSecondary}1A` },
+                          {                           backgroundColor: `${StatusColors[item.status ?? 'draft'] ?? theme.textSecondary}1A` },
                         ]}>
                         <ThemedText
                           type="smallBold"
-                          style={{ color: STATUS_COLORS[item.status ?? 'draft'] ?? theme.textSecondary }}>
+                          style={{ color: StatusColors[item.status ?? 'draft'] ?? theme.textSecondary }}>
                           {(item.status ?? 'draft').toUpperCase()}
                         </ThemedText>
                       </View>

@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/primary-button';
+import { FormError, SuccessCard, validateEmail, validatePhone } from '@/components/contact-form';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -41,8 +42,14 @@ export default function EnquiryScreen() {
       setError('Please enter your name');
       return;
     }
-    if (phone.trim().length < 8) {
-      setError('Please enter a valid phone number');
+    const phoneError = validatePhone(phone);
+    if (phoneError) {
+      setError(phoneError);
+      return;
+    }
+    const emailError = validateEmail(email);
+    if (emailError) {
+      setError(emailError);
       return;
     }
     setIsSubmitting(true);
@@ -65,20 +72,16 @@ export default function EnquiryScreen() {
 
   if (isDone) {
     return (
-      <ThemedView style={styles.container}>
-        <SafeAreaView style={[styles.safeArea, styles.center]} edges={['top', 'bottom']}>
-          <ThemedView type="backgroundElement" style={styles.doneCard}>
-            <ThemedText type="subtitle">Enquiry sent ✓</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              The sales team for {params.projectName ?? 'this project'} will reach out to you
-              shortly.
-            </ThemedText>
-            <View style={{ width: '100%', marginTop: Spacing.three }}>
-              <PrimaryButton label="Done" onPress={() => router.back()} />
-            </View>
-          </ThemedView>
-        </SafeAreaView>
-      </ThemedView>
+      <SuccessCard
+        title="Enquiry sent"
+        message={
+          <>
+            The sales team for {params.projectName ?? 'this project'} will reach out to you
+            shortly.
+          </>
+        }
+        onDone={() => router.back()}
+      />
     );
   }
 
@@ -91,43 +94,41 @@ export default function EnquiryScreen() {
             {params.unitNumber ? ` · Unit ${params.unitNumber}` : ''}
           </ThemedText>
 
-          <TextField
-            label="Full name"
-            value={name}
-            onChangeText={setName}
-            placeholder="Your name"
-            autoCapitalize="words"
-          />
-          <TextField
-            label="Phone"
-            value={phone}
-            onChangeText={setPhone}
-            placeholder="10-digit mobile number"
-            keyboardType="phone-pad"
-            maxLength={15}
-          />
-          <TextField
-            label="Email (optional)"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="you@example.com"
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-          <TextField
-            label="Message (optional)"
-            value={message}
-            onChangeText={setMessage}
-            placeholder="I'm interested in..."
-            multiline
-            style={styles.messageInput}
-          />
+          <View style={styles.form}>
+            <TextField
+              label="Full name"
+              value={name}
+              onChangeText={setName}
+              placeholder="Your name"
+              autoCapitalize="words"
+            />
+            <TextField
+              label="Phone"
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="10-digit mobile number"
+              keyboardType="phone-pad"
+              maxLength={15}
+            />
+            <TextField
+              label="Email (optional)"
+              value={email}
+              onChangeText={setEmail}
+              placeholder="you@example.com"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <TextField
+              label="Message (optional)"
+              value={message}
+              onChangeText={setMessage}
+              placeholder="I'm interested in..."
+              multiline
+              style={styles.messageInput}
+            />
+          </View>
 
-          {error && (
-            <ThemedText type="small" style={{ color: '#c94f4f' }}>
-              {error}
-            </ThemedText>
-          )}
+          <FormError error={error} />
 
           <PrimaryButton label="Send enquiry" onPress={handleSubmit} loading={isSubmitting} />
         </ScrollView>
@@ -147,17 +148,8 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: MaxContentWidth,
   },
-  center: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.four,
-  },
-  doneCard: {
-    borderRadius: Spacing.four,
-    padding: Spacing.five,
-    gap: Spacing.two,
-    alignItems: 'center',
-    width: '100%',
+  form: {
+    gap: Spacing.three,
   },
   content: {
     paddingHorizontal: Spacing.four,

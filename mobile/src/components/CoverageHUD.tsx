@@ -12,10 +12,11 @@ import {
 interface CoverageHUDProps {
   segments: Segment[];
   coveragePercent: number;
+  heading?: number;
   style?: ViewStyle;
 }
 
-export function CoverageHUD({ segments, coveragePercent, style }: CoverageHUDProps) {
+export function CoverageHUD({ segments, coveragePercent, heading, style }: CoverageHUDProps) {
   const theme = useTheme();
 
   const rows = useMemo(() => {
@@ -29,9 +30,16 @@ export function CoverageHUD({ segments, coveragePercent, style }: CoverageHUDPro
 
   return (
     <View style={[styles.container, { backgroundColor: 'rgba(12,14,26,0.75)' }, style]}>
-      <ThemedText type="small" style={styles.label}>
-        Coverage
-      </ThemedText>
+      <View style={styles.headingRow}>
+        <ThemedText type="small" style={styles.label}>
+          Coverage
+        </ThemedText>
+        {typeof heading === 'number' && (
+          <ThemedText type="small" style={styles.label}>
+            {Math.round(heading)}°
+          </ThemedText>
+        )}
+      </View>
 
       <View style={styles.grid}>
         {rows.map((row, pIndex) => (
@@ -94,6 +102,11 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
     textAlign: 'center',
+  },
+  headingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   grid: {
     gap: 2,

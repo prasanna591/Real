@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PrimaryButton } from '@/components/primary-button';
+import { FormError, SuccessCard, validatePhone } from '@/components/contact-form';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -29,7 +30,7 @@ function formatSlot(daysFromNow: number, hour: number): string {
   const date = new Date();
   date.setDate(date.getDate() + daysFromNow);
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(hour)}:${daysFromNow === 2 ? '30' : '00'}`;
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(hour)}:00`;
 }
 
 export default function BookVisitScreen() {
@@ -61,8 +62,9 @@ export default function BookVisitScreen() {
       setError('Please enter your name');
       return;
     }
-    if (phone.trim().length < 8) {
-      setError('Please enter a valid phone number');
+    const phoneError = validatePhone(phone);
+    if (phoneError) {
+      setError(phoneError);
       return;
     }
     const scheduledAt = parseScheduled(slot);
@@ -93,20 +95,16 @@ export default function BookVisitScreen() {
 
   if (isDone) {
     return (
-      <ThemedView style={styles.container}>
-        <SafeAreaView style={[styles.safeArea, styles.center]} edges={['top', 'bottom']}>
-          <ThemedView type="backgroundElement" style={styles.doneCard}>
-            <ThemedText type="subtitle">Visit booked ✓</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              Your site visit to {params.projectName ?? 'the project'} is scheduled for{' '}
-              {slot}. The sales team will confirm shortly.
-            </ThemedText>
-            <View style={{ width: '100%', marginTop: Spacing.three }}>
-              <PrimaryButton label="Done" onPress={() => router.back()} />
-            </View>
-          </ThemedView>
-        </SafeAreaView>
-      </ThemedView>
+      <SuccessCard
+        title="Visit booked"
+        message={
+          <>
+            Your site visit to {params.projectName ?? 'the project'} is scheduled for {slot}.
+            The sales team will confirm shortly.
+          </>
+        }
+        onDone={() => router.back()}
+      />
     );
   }
 
@@ -119,28 +117,31 @@ export default function BookVisitScreen() {
             {params.unitNumber ? ` · Unit ${params.unitNumber}` : ''}
           </ThemedText>
 
-          <TextField
-            label="Full name"
-            value={name}
-            onChangeText={setName}
-            placeholder="Your name"
-            autoCapitalize="words"
-          />
-          <TextField
-            label="Phone"
-            value={phone}
-            onChangeText={setPhone}
-            placeholder="10-digit mobile number"
-            keyboardType="phone-pad"
-            maxLength={15}
-          />
-          <TextField
-            label="Date & time"
-            value={slot}
-            onChangeText={setSlot}
-            placeholder="YYYY-MM-DD HH:MM"
-            autoCapitalize="none"
-          />
+          <View style={styles.form}>
+            <TextField
+              label="Full name"
+              value={name}
+              onChangeText={setName}
+              placeholder="Your name"
+              autoCapitalize="words"
+            />
+            <TextField
+              label="Phone"
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="10-digit mobile number"
+              keyboardType="phone-pad"
+              maxLength={15}
+            />
+            <TextField
+              label="Date & time"
+              value={slot}
+              onChangeText={setSlot}
+              placeholder="YYYY-MM-DD HH:MM"
+              autoCapitalize="none"
+            />
+          </View>
+
           <View style={styles.slotRow}>
             {[
               { label: 'Tomorrow · 10 AM', days: 1, hour: 10 },
@@ -151,6 +152,7 @@ export default function BookVisitScreen() {
               return (
                 <Pressable
                   key={preset.label}
+                  accessibilityRole="button"
                   onPress={() => setSlot(formatSlot(preset.days, preset.hour))}
                   style={[
                     styles.slotChip,
@@ -172,11 +174,7 @@ export default function BookVisitScreen() {
             Format: YYYY-MM-DD HH:MM (e.g. tomorrow at this time)
           </ThemedText>
 
-          {error && (
-            <ThemedText type="small" style={{ color: theme.danger }}>
-              {error}
-            </ThemedText>
-          )}
+          <FormError error={error} />
 
           <PrimaryButton label="Confirm booking" onPress={handleSubmit} loading={isSubmitting} />
         </ScrollView>
@@ -196,17 +194,8 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: MaxContentWidth,
   },
-  center: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.four,
-  },
-  doneCard: {
-    borderRadius: Spacing.four,
-    padding: Spacing.five,
-    gap: Spacing.two,
-    alignItems: 'center',
-    width: '100%',
+  form: {
+    gap: Spacing.three,
   },
   content: {
     paddingHorizontal: Spacing.four,

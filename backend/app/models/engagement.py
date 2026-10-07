@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, Text, func
+from sqlalchemy import JSON, CheckConstraint, DateTime, Enum, ForeignKey, Index, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -14,6 +14,13 @@ class SavedItem(Base, TimestampMixin):
 
     __tablename__ = "saved_items"
 
+    __table_args__ = (
+        CheckConstraint(
+            "(project_id IS NULL AND unit_id IS NOT NULL) OR (project_id IS NOT NULL AND unit_id IS NULL)",
+            name="ck_saved_item_single_target",
+        ),
+    )
+
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("customer_users.id", ondelete="CASCADE"), index=True)
     project_id: Mapped[Optional[int]] = mapped_column(
@@ -22,6 +29,16 @@ class SavedItem(Base, TimestampMixin):
     unit_id: Mapped[Optional[int]] = mapped_column(ForeignKey("units.id", ondelete="CASCADE"), nullable=True)
 
     user: Mapped["CustomerUser"] = relationship(back_populates="saved_items")  # noqa: F821
+
+
+# DB-level uniqueness scoped to one target (project OR unit) per user, so two
+# concurrent save requests can't create duplicate shortlist rows.
+Index(
+    "uq_saved_items_user_scope",
+    SavedItem.user_id,
+    func.coalesce(SavedItem.project_id, SavedItem.unit_id),
+    unique=True,
+)
 
 
 class EnquiryStatus(StrEnum):
@@ -80,6 +97,7 @@ class EventType(StrEnum):
     SITE_VISIT_BOOKED = "site_visit_booked"
     BOOKING = "booking"
     ASSISTANT_MESSAGE = "assistant_message"
+    SHARE = "share"
 
 
 class EnquiryNote(Base, TimestampMixin):
@@ -107,6 +125,42 @@ class AnalyticsEvent(Base):
         ForeignKey("units.id", ondelete="SET NULL"), nullable=True
     )
     session_id: Mapped[str] = mapped_column(String(64), default="", index=True)
+    # Optional referrer attribution for `share` events (no FK — append-only log
+    # must survive the referrer's account being deleted).
+    ref_user_id: Mapped[Optional[int]] = mapped_column(nullable=True)
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class ListingRequestStatus(StrEnum):
+    PENDING = "pending"
+    CONTACTED = "contacted"
+    ACTIVATED = "activated"
+    REJECTED = "rejected"
+
+
+class ListingRequest(Base, TimestampMixin):
+    """A customer's request to list their property, awaiting builder review."""
+
+    __tablename__ = "listing_requests"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("customer_users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    name: Mapped[str] = mapped_column(String(120))
+    phone: Mapped[str] = mapped_column(String(20), index=True)
+    email: Mapped[str] = mapped_column(String(200), default="")
+    property_type: Mapped[str] = mapped_column(String(60), default="")
+    bhk: Mapped[Optional[int]] = mapped_column(nullable=True)
+    city: Mapped[str] = mapped_column(String(100), default="")
+    locality: Mapped[str] = mapped_column(String(200), default="")
+    expected_price: Mapped[str] = mapped_column(String(40), default="")
+    description: Mapped[str] = mapped_column(Text, default="")
+    images: Mapped[list[str]] = mapped_column(JSON, default=list)
+    status: Mapped[ListingRequestStatus] = mapped_column(
+        Enum(ListingRequestStatus, native_enum=False),
+        default=ListingRequestStatus.PENDING,
+        index=True,
     )

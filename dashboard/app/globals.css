@@ -8,8 +8,19 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-dm-sans);
+  --font-serif: var(--font-playfair);
   --font-mono: var(--font-geist-mono);
+}
+
+html {
+  scrollbar-color: #cbd5e1 transparent;
+  scrollbar-width: thin;
+}
+
+::selection {
+  background: rgba(249, 115, 22, 0.22);
+  color: inherit;
 }
 
 body {
@@ -18,9 +29,62 @@ body {
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Subtle ambient gradient behind the app shell */
+.app-shell {
+  background:
+    radial-gradient(1200px 480px at 100% -10%, rgba(249, 115, 22, 0.06), transparent 60%),
+    radial-gradient(900px 420px at -10% 110%, rgba(99, 102, 241, 0.05), transparent 55%),
+    var(--background);
+}
+
+table.data {
+  @apply w-full border-collapse overflow-hidden rounded-xl border border-slate-100;
+}
+table.data thead th {
+  @apply bg-slate-50/80 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider text-slate-500;
+}
 table.data th {
-  @apply px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500;
+  @apply px-4 py-2.5 text-left text-xs font-semibold tracking-wide text-slate-500;
+}
+table.data tbody tr {
+  @apply transition-colors duration-100;
+}
+table.data tbody tr:hover {
+  @apply bg-orange-50/40;
 }
 table.data td {
   @apply border-t border-slate-100 px-4 py-2.5 text-sm text-slate-700;
+}
+
+@layer utilities {
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #d6dae2;
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #c3c9d4;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  .page-eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em];
+  }
+  .shadow-premium {
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.04),
+      0 4px 12px rgba(15, 23, 42, 0.06),
+      0 0 0 1px rgba(15, 23, 42, 0.03);
+  }
+  .shadow-premium-lg {
+    box-shadow:
+      0 2px 4px rgba(15, 23, 42, 0.04),
+      0 8px 24px rgba(15, 23, 42, 0.1),
+      0 0 0 1px rgba(15, 23, 42, 0.04);
+  }
 }

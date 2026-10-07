@@ -44,9 +44,17 @@ class Project(Base, TimestampMixin):
     builder_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("builder_users.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    # Denormalized social-proof counters so the feed doesn't aggregate on every read.
+    save_count: Mapped[int] = mapped_column(default=0, server_default="0", index=True)
+    view_count: Mapped[int] = mapped_column(default=0, server_default="0", index=True)
 
     towers: Mapped[list["Tower"]] = relationship(back_populates="project", cascade="all, delete-orphan")
     media: Mapped[list["MediaAsset"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    builder: Mapped[Optional["BuilderUser"]] = relationship()  # noqa: F821
+
+    @property
+    def builder_name(self) -> str | None:
+        return self.builder.name if self.builder is not None else None
 
 
 class Tower(Base, TimestampMixin):

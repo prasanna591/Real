@@ -110,6 +110,13 @@ Sign in at `http://localhost:3000/login` with `builder@acme.com` / `secret123`.
 | `GET /api/v1/enquiries/{id}/notes` | ✅ | List enquiry notes |
 | `POST /api/v1/site-visits` | — | Book site visit |
 | `GET/PATCH /api/v1/site-visits` | ✅ | List/update site visits |
+| `POST /api/v1/listing-requests` | — | Customer "post my property" lead |
+| `POST /api/v1/listing-requests/{id}/images` | — | Upload listing photos |
+| `GET /api/v1/builders` | — | Followable builders |
+| `POST/DELETE /api/v1/follows` | — | Follow / unfollow builder |
+| `GET /api/v1/users/{id}/following` | — | Builders a user follows |
+| `GET /api/v1/feed` | — | Followed-builder timeline |
+| `POST/GET /api/v1/room-scans` | — | Room-scan upload / list |
 | `POST /api/v1/analytics/events` | — | Track analytics event |
 | `GET /api/v1/projects/{id}/analytics/summary` | ✅ | Analytics summary |
 | `GET /api/v1/builder/projects` | ✅ | Builder portfolio (scoped) |
@@ -175,7 +182,7 @@ cd backend
 python -m pytest tests/ -v
 ```
 
-**Test suite:** 49 tests covering auth, projects, engagement, builder dashboard, and AI assistant.
+**Test suite:** 92 tests covering auth, projects, engagement, builder dashboard, room scans, social follow + feed, and AI assistant.
 
 ---
 
@@ -283,7 +290,7 @@ Full strategy: see [`backend/STRATEGY.md`](./backend/STRATEGY.md)
 Property discovery, 3D walkthrough, unit grid, save/enquire/book, builder console v1, analytics foundation.
 
 ### Phase 2 — Intelligence & Personalization ✅
-AI assistant v1, builder web dashboard, rate limiting, Alembic migrations, 49 tests, N+1 query fixes, input validation.
+AI assistant v1, builder web dashboard, rate limiting, Alembic migrations, N+1 query fixes, input validation. **Social follow + timeline feed**; cover_url batching; mobile Tab (Expo Go) fix.
 
 ### Phase 3 — API Hardening ✅
 RFC 7807 errors, structured logging (structlog), Sentry integration, multi-tenancy, S3 uploads, background jobs (ARQ).

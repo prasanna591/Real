@@ -23,6 +23,7 @@ export async function trackEvent(payload: {
   eventType: string;
   projectId: number;
   unitId?: number | null;
+  refUserId?: number;
 }): Promise<void> {
   try {
     const sessionId = await getAnalyticsSessionId();
@@ -31,6 +32,7 @@ export async function trackEvent(payload: {
       project_id: payload.projectId,
       unit_id: payload.unitId ?? null,
       session_id: sessionId,
+      ref_user_id: payload.refUserId ?? null,
     });
   } catch {}
 }

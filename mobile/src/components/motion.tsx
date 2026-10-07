@@ -74,12 +74,12 @@ export function Entrance({
 
 export function Skeleton({ width, height, radius = 12 }: { width?: number | `${number}%`; height: number; radius?: number }) {
   const theme = useTheme();
-  const opacity = useSharedValue(0.5);
+  const opacity = useSharedValue(0.45);
   const shimmer = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/immutability -- reanimated shared value
-    opacity.value = withRepeat(withTiming(1, { duration: 750, easing: Easing.inOut(Easing.quad) }), -1, true);
+    opacity.value = withRepeat(withTiming(1, { duration: 900, easing: Easing.inOut(Easing.quad) }), -1, true);
   }, [opacity]);
 
   return (

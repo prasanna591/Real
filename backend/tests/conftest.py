@@ -1,13 +1,24 @@
+import os
+import tempfile
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.core.database import Base, get_db
-from app.core.security import create_access_token, hash_password
-from app.main import create_app
-from app.models import BuilderRole, BuilderUser, Project, ProjectStatus
+# Point the app engine (used by the create_app lifespan) at a throwaway
+# database/media dir BEFORE app modules load, so test runs never touch the real
+# ./proptech.db or ./media directories.
+_media_tmp = tempfile.mkdtemp(prefix="proptech-media-")
+_db_tmp_dir = tempfile.mkdtemp(prefix="proptech-db-")
+os.environ.setdefault("DATABASE_URL", f"sqlite:///{_db_tmp_dir}/test.db")
+os.environ.setdefault("MEDIA_DIR", _media_tmp)
+
+from app.core.database import Base, get_db  # noqa: E402
+from app.core.security import create_access_token, hash_password  # noqa: E402
+from app.main import create_app  # noqa: E402
+from app.models import BuilderRole, BuilderUser, Project, ProjectStatus  # noqa: E402
 
 
 @pytest.fixture(scope="session")
@@ -73,6 +84,26 @@ def builder(db_session) -> BuilderUser:
 @pytest.fixture()
 def auth_headers(builder) -> dict:
     token = create_access_token(str(builder.id), str(builder.role))
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture()
+def other_builder(db_session) -> BuilderUser:
+    builder = BuilderUser(
+        name="Other Builder",
+        email="other@test.com",
+        password_hash=hash_password("testpass123"),
+        role=BuilderRole.BUILDER,
+    )
+    db_session.add(builder)
+    db_session.commit()
+    db_session.refresh(builder)
+    return builder
+
+
+@pytest.fixture()
+def other_auth_headers(other_builder) -> dict:
+    token = create_access_token(str(other_builder.id), str(other_builder.role))
     return {"Authorization": f"Bearer {token}"}
 
 

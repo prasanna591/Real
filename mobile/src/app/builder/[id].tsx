@@ -18,10 +18,10 @@ import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 
-import { MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Radius, Spacing, StatusColors } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useBuilderAuth } from '@/lib/builder-auth';
-import { listFloors, listMedia, listTowers, listUnits } from '@/services/api';
+import { listFloors, listMedia, listTowers, listUnits, getProject } from '@/services/api';
 import {
   addMediaAsset,
   createFloor,
@@ -29,14 +29,12 @@ import {
   createUnit,
   getAnalyticsSummary,
   getBuilderPipeline,
-  listBuilderProjects,
   updateProjectStatus,
   updateUnitStatus,
 } from '@/services/builder';
 import type {
   AnalyticsSummary,
   BuilderPipeline,
-  BuilderProjectSummary,
   Floor,
   MediaAsset,
   Tower,
@@ -44,11 +42,6 @@ import type {
 } from '@/types/api';
 
 const STATUS_FLOW = ['available', 'booked', 'sold'] as const;
-const STATUS_COLORS: Record<string, string> = {
-  available: '#16A34A',
-  booked: '#D97706',
-  sold: '#DC2626',
-};
 const PROJECT_STATUSES = ['draft', 'active', 'sold_out'] as const;
 const MEDIA_TYPES = ['photo', 'floor_plan', 'model_3d', 'capture_360', 'ar_pack', 'interior_set'];
 
@@ -59,7 +52,8 @@ export default function BuilderProjectScreen() {
   const projectId = Number(params.id);
   const { session, isLoading: authLoading } = useBuilderAuth();
 
-  const [summary, setSummary] = useState<BuilderProjectSummary | null>(null);
+  const [summary, setSummary] = useState<{ status: string; unit_count: number; available_units: number } | null>(null);
+  const [projectName, setProjectName] = useState('');
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [pipeline, setPipeline] = useState<BuilderPipeline | null>(null);
   const [towers, setTowers] = useState<Tower[]>([]);
@@ -68,6 +62,7 @@ export default function BuilderProjectScreen() {
   const [media, setMedia] = useState<MediaAsset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !session) router.replace('/builder/login');
@@ -76,24 +71,30 @@ export default function BuilderProjectScreen() {
   const loadAll = useCallback(async () => {
     if (!session || !projectId) return;
     try {
-      const [projectList, analyticsData, pipelineData, towerList, unitList, mediaList] =
+      const [projectData, analyticsData, pipelineData, towerList, unitList, mediaList] =
         await Promise.all([
-          listBuilderProjects(),
+          getProject(projectId),
           getAnalyticsSummary(projectId),
           getBuilderPipeline(projectId),
           listTowers(projectId),
           listUnits(projectId),
           listMedia(projectId),
         ]);
-      setSummary(projectList.find((p) => p.id === projectId) ?? null);
+      setSummary({
+        status: projectData.status,
+        unit_count: unitList.length,
+        available_units: unitList.filter((u) => u.status === 'available').length,
+      });
+      setProjectName(projectData.name);
       setAnalytics(analyticsData);
       setPipeline(pipelineData);
       setTowers(towerList);
       setUnits(unitList);
       setMedia(mediaList);
-      const floorEntries = await Promise.all(
-        towerList.map(async (t) => [t.id, await listFloors(projectId, t.id)] as const)
+      const floorResults = await Promise.all(
+        towerList.map((t) => listFloors(projectId, t.id))
       );
+      const floorEntries = towerList.map((t, i) => [t.id, floorResults[i]] as const);
       setFloorsByTower(Object.fromEntries(floorEntries));
       setError(null);
     } catch (err) {
@@ -104,38 +105,9 @@ export default function BuilderProjectScreen() {
   }, [session, projectId]);
 
   useEffect(() => {
-    let cancelled = false;
-    if (!session || !projectId) return;
-    Promise.all([
-      getAnalyticsSummary(projectId),
-      getBuilderPipeline(projectId),
-      listTowers(projectId),
-      listUnits(projectId),
-      listMedia(projectId),
-    ])
-      .then(async ([analyticsData, pipelineData, towerList, unitList, mediaList]) => {
-        if (cancelled) return;
-        setAnalytics(analyticsData);
-        setPipeline(pipelineData);
-        setTowers(towerList);
-        setUnits(unitList);
-        setMedia(mediaList);
-        const floorEntries = await Promise.all(
-          towerList.map(async (t) => [t.id, await listFloors(projectId, t.id)] as const)
-        );
-        if (cancelled) return;
-        setFloorsByTower(Object.fromEntries(floorEntries));
-        setIsLoading(false);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        setError(err instanceof Error ? err.message : 'Could not load project.');
-        setIsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [session, projectId]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- standard async data-fetch pattern
+    loadAll();
+  }, [loadAll]);
 
   if (authLoading || !session || isLoading) {
     return (
@@ -147,7 +119,7 @@ export default function BuilderProjectScreen() {
 
   return (
     <ThemedView type="background" style={styles.root}>
-      <Stack.Screen options={{ title: summary?.name ?? 'Manage project' }} />
+      <Stack.Screen options={{ title: projectName || 'Manage project' }} />
       <SafeAreaView edges={['top']} style={styles.safe}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <ScrollView
@@ -156,6 +128,14 @@ export default function BuilderProjectScreen() {
             showsVerticalScrollIndicator={false}>
             {error && (
               <ThemedText style={{ color: theme.danger }}>{error}</ThemedText>
+            )}
+            {statusError && (
+              <ThemedView type="backgroundElement" style={[styles.card, { borderColor: theme.danger }]}>
+                <ThemedText style={{ color: theme.danger }}>{statusError}</ThemedText>
+                <Pressable onPress={() => setStatusError(null)}>
+                  <ThemedText type="smallBold" style={{ color: theme.primary }}>Dismiss</ThemedText>
+                </Pressable>
+              </ThemedView>
             )}
 
             {analytics && (
@@ -181,9 +161,12 @@ export default function BuilderProjectScreen() {
                       return (
                         <Pressable
                           key={status}
-                          onPress={() =>
-                            updateProjectStatus(projectId, status).then(loadAll).catch(() => {})
-                          }
+                          onPress={() => {
+                            setStatusError(null);
+                            updateProjectStatus(projectId, status)
+                              .then(loadAll)
+                              .catch((err) => setStatusError(err instanceof Error ? err.message : 'Failed to update status'));
+                          }}
                           style={[
                             styles.chip,
                             {
@@ -213,14 +196,17 @@ export default function BuilderProjectScreen() {
                 <SectionCard title={`Inventory · ${units.length} units`}>
                   <View style={styles.unitGrid}>
                     {units.slice(0, 24).map((unit) => {
-                      const color = STATUS_COLORS[unit.status] ?? theme.textSecondary;
+                      const color = StatusColors[unit.status as keyof typeof StatusColors] ?? theme.textSecondary;
                       return (
                         <Pressable
                           key={unit.id}
                           onPress={() => {
                             const next =
                               STATUS_FLOW[(STATUS_FLOW.indexOf(unit.status as typeof STATUS_FLOW[number]) + 1) % STATUS_FLOW.length];
-                            updateUnitStatus(projectId, unit.id, next).then(loadAll).catch(() => {});
+                            setStatusError(null);
+                            updateUnitStatus(projectId, unit.id, next)
+                              .then(loadAll)
+                              .catch((err) => setStatusError(err instanceof Error ? err.message : 'Failed to update unit'));
                           }}
                           style={[styles.unitPill, { borderColor: `${color}55`, backgroundColor: `${color}14` }]}>
                           <View style={[styles.statusDot, { backgroundColor: color }]} />
@@ -445,7 +431,7 @@ function InventoryBuilder({
       <TextField label="Unit number" placeholder="B201" value={unitNumber} onChangeText={setUnitNumber} />
       <View style={styles.row3}>
         <View style={{ flex: 1 }}>
-          <TextField label="BHK" keyboardType="numeric" value={bhk} onChangeText={setBhk} />
+          <TextField label="BHK" keyboardType="number-pad" value={bhk} onChangeText={setBhk} />
         </View>
         <View style={{ flex: 1 }}>
           <TextField label="Area sqft" keyboardType="numeric" placeholder="1450" value={areaSqft} onChangeText={setAreaSqft} />
@@ -457,19 +443,34 @@ function InventoryBuilder({
       <PrimaryButton
         label={selectedFloorId ? `Add unit to floor ${floors[0].number}` : 'Select a tower with a floor first'}
         disabled={busy || !selectedFloorId}
-        onPress={() =>
+        onPress={() => {
+          const bhkVal = Number(bhk);
+          const areaVal = Number(areaSqft || 0);
+          const priceVal = Number(price || 0);
+          if (!Number.isInteger(bhkVal) || bhkVal < 1 || bhkVal > 10) {
+            setError('BHK must be a whole number between 1 and 10');
+            return;
+          }
+          if (areaVal <= 0) {
+            setError('Area must be a positive number');
+            return;
+          }
+          if (priceVal <= 0) {
+            setError('Price must be a positive number');
+            return;
+          }
           run(() =>
             createUnit(projectId, selectedTowerId!, selectedFloorId!, {
               unit_number: unitNumber.trim(),
-              bhk: Number(bhk || 1),
-              area_sqft: Number(areaSqft || 0),
-              price: Number(price || 0),
+              bhk: bhkVal,
+              area_sqft: areaVal,
+              price: priceVal,
             })
           ).then(() => {
             setUnitNumber('');
             setPrice('');
-          })
-        }
+          });
+        }}
       />
       {error && <ThemedText style={{ color: theme.danger }}>{error}</ThemedText>}
     </SectionCard>

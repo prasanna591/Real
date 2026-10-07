@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { Card, ErrorNote, Spinner } from "@/components/ui";
-import { requireApi, type EnquiryStatus, type Pipeline } from "@/lib/api";
+import { requireApi, type EnquiryStatus, type Pipeline, type VisitStatus } from "@/lib/api";
 
 const STATUSES: EnquiryStatus[] = ["new", "contacted", "qualified", "site_visit", "booked", "closed"];
 
-const VISIT_STATUSES = ["scheduled", "completed", "cancelled"] as const;
+const VISIT_STATUSES: VisitStatus[] = ["scheduled", "completed", "cancelled"];
 
 export function LeadsTab({ projectId }: { projectId: number }) {
   const [pipeline, setPipeline] = useState<Pipeline | null>(null);
@@ -32,7 +32,7 @@ export function LeadsTab({ projectId }: { projectId: number }) {
     }
   };
 
-  const updateVisitStatus = async (visitId: number, status: string) => {
+  const updateVisitStatus = async (visitId: number, status: VisitStatus) => {
     try {
       await requireApi(`/api/v1/site-visits/${visitId}`, { method: "PATCH", body: { status } });
       await reload();
@@ -48,9 +48,14 @@ export function LeadsTab({ projectId }: { projectId: number }) {
       {error ? <ErrorNote message={error} /> : null}
 
       <Card className="overflow-hidden">
-        <div className="px-4 py-3">
-          <p className="text-sm font-semibold text-slate-800">Enquiries</p>
-          <p className="text-xs text-slate-400">Move leads through your sales pipeline</p>
+        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/40 px-4 py-3">
+          <div>
+            <p className="page-eyebrow mb-1 text-slate-400">Pipeline</p>
+            <p className="text-sm font-semibold text-slate-800">Enquiries</p>
+          </div>
+          <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+            {pipeline?.enquiries.length ?? 0}
+          </span>
         </div>
         <table className="data w-full">
           <thead>
@@ -99,9 +104,14 @@ export function LeadsTab({ projectId }: { projectId: number }) {
       </Card>
 
       <Card className="overflow-hidden">
-        <div className="px-4 py-3">
-          <p className="text-sm font-semibold text-slate-800">Site visits</p>
-          <p className="text-xs text-slate-400">Booked visit slots</p>
+        <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50/40 px-4 py-3">
+          <div>
+            <p className="page-eyebrow mb-1 text-slate-400">Schedule</p>
+            <p className="text-sm font-semibold text-slate-800">Site visits</p>
+          </div>
+          <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+            {pipeline?.site_visits.length ?? 0}
+          </span>
         </div>
         <table className="data w-full">
           <thead>
@@ -120,8 +130,8 @@ export function LeadsTab({ projectId }: { projectId: number }) {
                 <td>{new Date(visit.scheduled_at).toLocaleString()}</td>
                 <td>
                   <select
-                    value={visit.status}
-                    onChange={(e) => void updateVisitStatus(visit.id, e.target.value)}
+                    value={visit.status ?? "scheduled"}
+                    onChange={(e) => void updateVisitStatus(visit.id, e.target.value as VisitStatus)}
                     className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm"
                   >
                     {VISIT_STATUSES.map((status) => (

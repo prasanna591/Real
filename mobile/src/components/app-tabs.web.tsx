@@ -11,6 +11,7 @@ import { useTheme } from '@/hooks/use-theme';
 const TABS = [
   { name: 'index', href: '/', label: 'Home', icon: 'home-outline' as const },
   { name: 'saved', href: '/saved', label: 'Saved', icon: 'heart-outline' as const },
+  { name: 'scans', href: '/scans', label: 'Scans', icon: 'scan-outline' as const },
   { name: 'account', href: '/account', label: 'Account', icon: 'person-outline' as const },
 ] as const;
 
@@ -57,9 +58,17 @@ function TabButton({
 }
 
 function CustomTabList({ children, ...rest }: TabListProps & { children?: ReactNode }) {
+  const theme = useTheme();
   return (
     <View style={[styles.tabBarOuter]} pointerEvents="box-none">
-      <View style={styles.tabBarSurface}>
+      <View
+        style={[
+          styles.tabBarSurface,
+          {
+            backgroundColor: `${theme.backgroundElement}E0`,
+            borderTopColor: theme.border,
+          },
+        ]}>
         <View style={[styles.tabBarInner, { maxWidth: MaxContentWidth }]} {...rest}>
           {children}
         </View>
@@ -76,10 +85,10 @@ const styles = StyleSheet.create({
     right: 0,
   },
   tabBarSurface: {
-    backgroundColor: 'rgba(255,255,255,0.96)',
+    backdropFilter: 'blur(20px) saturate(180%)',
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E2E8F0',
-  },
+    boxShadow: '0 -2px 12px rgba(0,0,0,0.04)',
+  } as any,
   tabBarInner: {
     flexDirection: 'row',
     alignItems: 'stretch',
@@ -90,14 +99,14 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    gap: 3,
     paddingVertical: 10,
     cursor: 'pointer',
   },
   iconWrap: {
-    width: 36,
-    height: 26,
-    borderRadius: 13,
+    width: 40,
+    height: 28,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },

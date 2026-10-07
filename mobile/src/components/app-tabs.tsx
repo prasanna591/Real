@@ -1,48 +1,33 @@
-import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useColorScheme } from 'react-native';
+import { Tabs } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useColorScheme, type ColorValue } from 'react-native';
 
 import { Colors } from '@/constants/theme';
+
+type IconName = keyof typeof Ionicons.glyphMap;
 
 export default function AppTabs() {
   const scheme = useColorScheme();
   const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
 
+  const TabIcon =
+    (icon: IconName, selectedIcon: IconName) =>
+    function TabIconInner({ focused, color, size }: { focused: boolean; color: ColorValue; size: number }) {
+      return <Ionicons name={focused ? selectedIcon : icon} size={size} color={color} />;
+    };
+
   return (
-    <NativeTabs
-      backgroundColor={colors.background}
-      indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}>
-      <NativeTabs.Trigger name="index">
-        <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/home.png')}
-          renderingMode="template"
-        />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="saved">
-        <NativeTabs.Trigger.Label>Saved</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/saved.png')}
-          renderingMode="template"
-        />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="scans">
-        <NativeTabs.Trigger.Label>Scans</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/explore.png')}
-          renderingMode="template"
-        />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="account">
-        <NativeTabs.Trigger.Label>Account</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon
-          src={require('@/assets/images/tabIcons/account.png')}
-          renderingMode="template"
-        />
-      </NativeTabs.Trigger>
-    </NativeTabs>
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarStyle: { backgroundColor: colors.backgroundElement },
+      }}>
+      <Tabs.Screen name="index" options={{ title: 'Home', tabBarLabel: 'Home', tabBarIcon: TabIcon('home-outline', 'home') }} />
+      <Tabs.Screen name="saved" options={{ title: 'Saved', tabBarLabel: 'Saved', tabBarIcon: TabIcon('heart-outline', 'heart') }} />
+      <Tabs.Screen name="scans" options={{ title: 'Scans', tabBarLabel: 'Scans', tabBarIcon: TabIcon('scan-outline', 'scan') }} />
+      <Tabs.Screen name="account" options={{ title: 'Account', tabBarLabel: 'Account', tabBarIcon: TabIcon('person-outline', 'person') }} />
+    </Tabs>
   );
 }

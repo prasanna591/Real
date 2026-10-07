@@ -193,6 +193,7 @@ function TowerSection({
       onChanged();
     } catch (err) {
       onError(err instanceof Error ? err.message : "Could not delete tower");
+    } finally {
       setBusy(false);
     }
   };
@@ -368,6 +369,7 @@ function FloorSection({
       onChanged();
     } catch (err) {
       onError(err instanceof Error ? err.message : "Could not delete floor");
+    } finally {
       setBusy(false);
     }
   };

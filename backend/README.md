@@ -2,9 +2,11 @@
 
 FastAPI backend for the PropTech platform — digital property experience & conversion API.
 
-- **Stack:** Python 3.12 · FastAPI 0.115 · SQLAlchemy 2.0 · Pydantic v2 · SQLite (PostgreSQL-ready) · bcrypt + PyJWT
+- **Stack:** Python 3.12 · FastAPI 0.115 · SQLAlchemy 2.0 · Pydantic v2 · SQLite (PostgreSQL-ready) · bcrypt + PyJWT (structlog, slowapi, sentry-sdk optional)
 - **Base path:** all routes mounted under `/api/v1`
 - **Interactive docs:** `http://localhost:8000/docs` (Swagger UI)
+- **Social layer:** per-project save/view counters, trending sort (`?sort=trending`), share-attribution events, **builder follow + timeline feed**, customer listing requests, room-scan sync
+- **Media:** local disk under `media/` served at `/media` (S3 presigned flow available but not default)
 
 ## Setup
 
@@ -93,12 +95,29 @@ curl localhost:8000/api/v1/projects -H "Authorization: Bearer <token>"
 | Method | Path | Description |
 |---|---|---|
 | POST | `/users` | Passwordless sign-in/create by phone (idempotent) |
-| POST | `/saved` | Save project and/or unit (deduped; logs `save` event) |
+| POST | `/saved` | Save project and/or unit — client may send both; unit wins, project_id is normalised from the unit's hierarchy (deduped; logs `save` event) |
 | GET | `/users/{user_id}/saved` | List shortlist |
 | DELETE | `/saved/{item_id}?session_id=` | Remove from shortlist (logs `unsave`) |
 | POST | `/enquiries` | Submit enquiry (logs `enquiry` event) |
 | POST | `/site-visits` | Book site visit (logs `site_visit_booked` event) |
+| POST | `/listing-requests` | Customer "post my property" → pending lead (links `CustomerUser` by phone) |
+| POST | `/listing-requests/{id}/images` | Multipart image upload → `media/listing-photos`, URLs appended to the request |
 | POST | `/analytics/events` | Track client event (202; types: view, walkthrough_complete, save, unsave, enquiry, site_visit_booked, booking, assistant_message) |
+
+### Social (customer) — builder follow & feed
+| Method | Path | Description |
+|---|---|---|
+| GET | `/builders` | Followable builders (suggestions with profile + counts) → `BuilderCard[]` |
+| POST | `/follows` | Follow a builder (`userId` + `builderId`) → `FollowRead` (201) |
+| DELETE | `/follows` | Unfollow (204); safe when nothing follows |
+| GET | `/users/{user_id}/following` | Builders a user follows → `BuilderCard[]` |
+| GET | `/feed` | Timeline: new/updated projects + unit drops from followed builders, newest first; respects login-session vs user_id filtering |
+
+### Room scans (customer)
+| Method | Path | Description |
+|---|---|---|
+| POST | `/room-scans` | Multipart keyframe-photo upload + metadata → stored under `media/room-scans/`; **idempotent** by `client_scan_id` |
+| GET | `/room-scans?project_id=` | List synced scans |
 
 ### AI assistant
 | Method | Path | Description |
@@ -110,6 +129,7 @@ curl localhost:8000/api/v1/projects -H "Authorization: Bearer <token>"
 | Method | Path | Description |
 |---|---|---|
 | GET 🔒 | `/enquiries?project_id` | Lead inbox (newest first) |
+| GET | `/enquiries/me?phone=` | **Customer-facing** enquiry status lookup (matches phone used at sign-in; includes `project_name` + `status`) |
 | PATCH 🔒 | `/enquiries/{id}` | Move pipeline: new → contacted → qualified → site_visit → booked → closed (`booked` logs `booking` event) |
 | GET 🔒 | `/site-visits?project_id` | Visits by schedule |
 | PATCH 🔒 | `/site-visits/{id}` | Update visit: status (scheduled/completed/cancelled) and/or `scheduled_at` |
@@ -125,7 +145,7 @@ curl localhost:8000/api/v1/projects -H "Authorization: Bearer <token>"
 
 ```
 app/
-├── main.py                 App factory, CORS, startup table creation
+├── main.py                 App factory, CORS, startup table creation, /media static mount
 ├── ai/
 │   ├── agent.py            pydantic-ai agent (typed DB-grounded tools)
 │   ├── fallback.py         deterministic intent engine (no LLM key needed)
@@ -134,23 +154,47 @@ app/
 │   ├── deps.py             get_current_builder dependency (OAuth2 bearer)
 │   └── routes/
 │       ├── auth.py         register / login / me
-│       ├── projects.py     catalog hierarchy + media
-│       ├── engagement.py   users, saved, enquiries, visits, analytics
-│       └── assistant.py    POST /assistant/chat, GET /assistant/status
+│       ├── projects.py     catalog hierarchy + media (list/detail batch cover_url)
+│       ├── engagement.py   users, saved, enquiries, visits, listing-requests, analytics
+│       ├── social.py       builder follow, following list, timeline feed
+│       ├── room_scans.py   scan upload + listing
+│       ├── builder.py      builder portfolio/analytics/pipeline
+│       ├── assistant.py    POST /assistant/chat, GET /assistant/status
+│       └── uploads.py      S3 presign + register (optional)
 ├── core/
 │   ├── config.py           pydantic-settings (.env)
 │   ├── database.py         engine, SessionLocal, get_db
-│   └── security.py         bcrypt hash/verify, JWT encode/decode
-├── models/                 SQLAlchemy 2.0 Mapped[] models (10 tables)
+│   ├── security.py         bcrypt hash/verify, JWT encode/decode
+│   └── uploads.py          local/UPLOAD target + presign helpers
+├── models/                 SQLAlchemy 2.0 Mapped[] models
 └── schemas/                Pydantic request/response models
 ```
 
-**Models:** `Project → Tower → Floor → Unit`, `MediaAsset`, `CustomerUser`, `SavedItem`, `Enquiry`, `SiteVisit`, `AnalyticsEvent` (append-only), `BuilderUser`.
+**Models:** `Project → Tower → Floor → Unit`, `MediaAsset`, `TourViewpoint`, `CustomerUser`, `BuilderUser`, `BuilderFollow`, `SavedItem`, `Enquiry`(+notes), `SiteVisit`, `AnalyticsEvent` (append-only), `ListingRequest`, `RoomScan`.
+
+**N+1 guard:** `GET /projects` and `GET /projects/{id}` attach each project's `cover_url` from a single batched photo query (`_attach_cover_url`) — card lists never re-query media per item.
+
+**Performance guards:** with `slowapi`, hotspot endpoints carry `@limiter.limit(...)` (e.g. 120/hour on `POST /users`, 60/minute on `POST /saved`, 20/hour on listing-requests, 10/minute on login).
 
 ## Known Gaps / Roadmap
 
-- No Alembic migrations yet (`create_all` only) — add before switching to PostgreSQL
-- Media registration is URL-only — S3 presigned upload endpoint planned
-- CORS allows all origins (`main.py`) — tighten per environment
-- No rate limiting on public write endpoints (enquiries)
-- No automated test suite (verified via scripted smoke tests so far)
+- Customer save/enquiry endpoints are unauth'd by design and keyed on caller-supplied IDs — a real customer session token is the longer-term fix
+- Room-scan/local asset files live on disk; swap in the S3 presigned-upload flow for production
+- Alembic migrations cover the optional unit_id/FKs and current models, but keep `create_all` as the source of truth until moving to PostgreSQL
+
+## Testing
+
+Run the suites with:
+
+```bash
+./.venv/bin/python -m pytest tests/        # 94 tests: auth, projects, units,
+                                           # media upload, room scans, engagement (+
+                                           # my-enquiries-by-phone),
+                                           # social proof (counters/trending/attribution),
+                                           # social follow + feed, builder, assistant
+```
+
+`tests/conftest.py` points the app at a throwaway SQLite DB and media dir via
+`DATABASE_URL`/`MEDIA_DIR` env vars, so the suite never touches real data. The
+saved-endpoint test confirms the client-may-send-both-contract: a save with both
+`project_id` and `unit_id` stores exactly one target (the unit).

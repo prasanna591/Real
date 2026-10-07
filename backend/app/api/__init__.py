@@ -7,6 +7,7 @@ from app.api.routes import (
     engagement,
     projects,
     room_scans,
+    social,
     uploads,
 )
 
@@ -15,6 +16,7 @@ api_router.include_router(auth.router)
 api_router.include_router(projects.router)
 api_router.include_router(engagement.router)
 api_router.include_router(builder.router)
+api_router.include_router(social.router)
 api_router.include_router(assistant.router)
 api_router.include_router(uploads.router)
 api_router.include_router(room_scans.router)

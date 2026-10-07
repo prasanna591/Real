@@ -28,6 +28,11 @@ export interface Project {
   possession_date: string | null;
   amenities: string[];
   status: ProjectStatus;
+  save_count: number;
+  view_count: number;
+  builder_id: number | null;
+  builder_name: string | null;
+  cover_url?: string | null;
   created_at: string;
 }
 
@@ -116,6 +121,15 @@ export interface Enquiry {
   created_at: string;
 }
 
+export interface MyEnquiry {
+  id: number;
+  project_id: number;
+  project_name: string;
+  unit_id: number | null;
+  status: EnquiryStatus;
+  created_at: string;
+}
+
 export type VisitStatus = 'scheduled' | 'completed' | 'cancelled';
 
 export interface SiteVisit {
@@ -137,7 +151,8 @@ export type AnalyticsEventType =
   | 'enquiry'
   | 'site_visit_booked'
   | 'booking'
-  | 'assistant_message';
+  | 'assistant_message'
+  | 'share';
 
 export interface AnalyticsSummary {
   property_views: number;
@@ -163,6 +178,7 @@ export interface ProjectListFilters {
   propertyType?: PropertyType;
   city?: string;
   status?: ProjectStatus;
+  sort?: 'recent' | 'views' | 'saves' | 'trending';
 }
 
 export interface UnitListFilters {
@@ -227,4 +243,35 @@ export interface RoomScan {
   thumbnail_url: string | null;
   photo_urls: string[];
   created_at: string;
+}
+
+export type FeedKind = 'launch' | 'units' | 'popular' | 'featured';
+
+export interface BuilderCard {
+  id: number;
+  name: string;
+  project_count: number;
+  follower_count: number;
+}
+
+export interface FollowRead {
+  id: number;
+  user_id: number;
+  builder_id: number;
+}
+
+export interface FeedItem {
+  id: string;
+  kind: FeedKind;
+  builder_id: number;
+  builder_name: string;
+  headline: string;
+  sub: string;
+  created_at: string;
+  project: Project;
+}
+
+export interface FeedResponse {
+  mode: 'following' | 'discover';
+  items: FeedItem[];
 }

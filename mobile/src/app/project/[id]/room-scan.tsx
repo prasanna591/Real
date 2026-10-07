@@ -1,7 +1,7 @@
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
-import { CameraView } from 'expo-camera';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 
 import { CoverageHUD } from '@/components/CoverageHUD';
 import { MotionIndicator } from '@/components/MotionIndicator';
@@ -39,6 +39,7 @@ export default function RoomScanScreen() {
 
   const [segments, setSegments] = useState<Segment[]>(() => createCoverageGrid());
   const [coveragePercent, setCoveragePercent] = useState(0);
+  const [heading, setHeading] = useState(0);
   const [isComplete, setIsComplete] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [motionStatus, setMotionStatus] = useState<MotionStatus>('good');
@@ -48,10 +49,23 @@ export default function RoomScanScreen() {
   const selectorRef = useRef(new KeyframeSelector());
   const lastPoseRef = useRef<{ yaw: number; pitch: number; timestamp: number } | null>(null);
   const segmentsRef = useRef(segments);
+  const coveragePercentRef = useRef(0);
   const cameraRef = useRef<CameraView | null>(null);
   const scanIdRef = useRef<string | null>(null);
   const captureQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   const stopInFlightRef = useRef(false);
+
+  const [permission, requestPermission] = useCameraPermissions();
+
+  useEffect(() => {
+    const requestCameraAccess = async () => {
+      if (permission && !permission.granted) {
+        await requestPermission();
+      }
+    };
+    requestCameraAccess();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     segmentsRef.current = segments;
@@ -100,7 +114,7 @@ export default function RoomScanScreen() {
       name: params.name ?? `Scan ${new Date().toLocaleDateString()}`,
       thumbnailPath: keyframes[0]?.imagePath ?? null,
       keyframeCount: keyframes.length,
-      coveragePercent: coveragePercent,
+      coveragePercent: coveragePercentRef.current,
       durationMs: SCAN_DURATION_MS,
       createdAt: new Date().toISOString(),
       keyframes,
@@ -110,7 +124,7 @@ export default function RoomScanScreen() {
 
     Alert.alert(
       'Scan saved',
-      `Captured ${keyframes.length} keyframes (${Math.round(coveragePercent)}% coverage).`,
+      `Captured ${keyframes.length} keyframes (${Math.round(coveragePercentRef.current)}% coverage).`,
       [
         {
           text: 'View walkthrough',
@@ -120,10 +134,10 @@ export default function RoomScanScreen() {
         { text: 'OK' },
       ],
     );
-  }, [arSession, projectId, params.name, coveragePercent, router]);
+  }, [arSession, projectId, params.name, router]);
 
   const handlePoseUpdate = useCallback(
-    (pose: { position: { x: number; y: number; z: number }; rotation: { x: number; y: number; z: number; w: number }; angularVelocity: { x: number; y: number; z: number }; timestamp: number }) => {
+    (pose: { position: { x: number; y: number; z: number }; rotation: { x: number; y: number; z: number; w: number }; angularVelocity: { x: number; y: number; z: number }; heading: number; timestamp: number }) => {
       if (!isRunning) return;
 
       const now = Date.now();
@@ -141,7 +155,9 @@ export default function RoomScanScreen() {
         const dt = now - last.timestamp;
         const updated = updateCoverage(segmentsRef.current, yaw, pitch, dt);
         setSegments([...updated.segments]);
+        coveragePercentRef.current = updated.coveragePercent;
         setCoveragePercent(updated.coveragePercent);
+        setHeading(pose.heading);
 
         // AUTO-STOP: end the scan early once coverage is complete (~85%).
         if (updated.isComplete && isRunning) {
@@ -189,10 +205,12 @@ export default function RoomScanScreen() {
   }, [arSession, handlePoseUpdate]);
 
   const handleStart = useCallback(async () => {
-    const ok = await arSession.startTracking();
-    if (!ok) {
-      Alert.alert('Permission needed', 'Camera access is required for room scanning.');
-      return;
+    if (permission && !permission.granted) {
+      const requested = await requestPermission();
+      if (!requested.granted) {
+        Alert.alert('Permission needed', 'Camera access is required for room scanning.');
+        return;
+      }
     }
     arSession.resetPose();
     selectorRef.current.reset();
@@ -202,7 +220,13 @@ export default function RoomScanScreen() {
     setIsComplete(false);
     setKeyframeCount(0);
     setIsRunning(true);
-  }, [arSession]);
+    const ok = await arSession.startTracking();
+    if (!ok) {
+      setIsRunning(false);
+      Alert.alert('Permission needed', 'Camera access is required for room scanning.');
+      return;
+    }
+  }, [permission, requestPermission, arSession]);
 
   return (
     <ThemedView type="background" style={styles.root}>
@@ -216,15 +240,24 @@ export default function RoomScanScreen() {
       />
 
       <View style={styles.cameraWrap}>
-        <CameraView
-          ref={cameraRef}
-          style={styles.camera}
-          facing="back"
-        />
+        {permission?.granted ? (
+          <CameraView
+            ref={cameraRef}
+            style={styles.camera}
+            facing="back"
+          />
+        ) : (
+          <View style={styles.camera}>
+            <ThemedText type="smallBold">
+              Grant camera access to start scanning.
+            </ThemedText>
+          </View>
+        )}
 
         <CoverageHUD
           segments={segments}
           coveragePercent={coveragePercent}
+          heading={heading}
         />
 
         <MotionIndicator status={motionStatus} />

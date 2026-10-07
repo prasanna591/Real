@@ -1,14 +1,13 @@
 import time
 from contextlib import asynccontextmanager
 
-import sentry_sdk
 import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy import text
-from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api import api_router
 from app.core.config import get_settings
@@ -21,13 +20,13 @@ settings = get_settings()
 logger = structlog.get_logger()
 
 if settings.sentry_dsn:
+    import sentry_sdk
+
     sentry_sdk.init(
         dsn=settings.sentry_dsn,
         traces_sample_rate=0.1,
         environment="production" if not settings.debug else "development",
     )
-
-settings = get_settings()
 
 
 def _check_db_health() -> dict:
@@ -58,6 +57,7 @@ def create_app() -> FastAPI:
             "- Project, tower, floor, and unit management\n"
             "- Media asset registry (3D, floor plans, photos, 360°, AR)\n"
             "- Customer engagement: saves, enquiries, site visits\n"
+            "- Follow builders and a personalised property feed\n"
             "- Analytics event tracking with conversion funnel\n"
             "- AI property assistant (LLM + deterministic fallback)\n"
             "- Builder dashboard with lead pipeline\n\n"
@@ -72,6 +72,7 @@ def create_app() -> FastAPI:
             {"name": "auth", "description": "Builder registration and login"},
             {"name": "projects", "description": "Property project CRUD with tower/floor/unit hierarchy"},
             {"name": "engagement", "description": "Customer saves, enquiries, site visits, and analytics"},
+            {"name": "social", "description": "Follow builders and the personalised property feed"},
             {"name": "builder", "description": "Builder dashboard: portfolio, pipeline, and analytics"},
             {"name": "assistant", "description": "AI property assistant chat"},
             {"name": "meta", "description": "Health check and API info"},
@@ -82,6 +83,9 @@ def create_app() -> FastAPI:
     app.add_exception_handler(429, rate_limit_exceeded_handler)
     register_error_handlers(app)
 
+    # SlowAPI must wrap the app so its default/global limits apply to routes
+    # that don't carry their own @limiter decorator.
+    app.add_middleware(SlowAPIMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_origins,
@@ -102,6 +106,12 @@ def create_app() -> FastAPI:
 
         response.headers["X-Request-ID"] = request_id
         response.headers["X-Response-Time"] = f"{elapsed_ms}ms"
+
+        # Hardening for user-uploaded files served from /media: never let a
+        # browser sniff an attacker-controlled file as HTML/executable.
+        if request.url.path.startswith("/media/"):
+            response.headers.setdefault("X-Content-Type-Options", "nosniff")
+            response.headers.setdefault("Content-Security-Policy", "default-src 'none'")
 
         logger.info(
             "request",

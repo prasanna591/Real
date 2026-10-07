@@ -1,10 +1,10 @@
-import enum
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models.media import MediaType
 from app.models.project import ProjectStatus, PropertyType, UnitStatus
 
 
@@ -43,6 +43,11 @@ class ProjectRead(ProjectBase):
     id: int
     slug: str
     created_at: datetime
+    save_count: int = 0
+    view_count: int = 0
+    builder_id: Optional[int] = None
+    builder_name: Optional[str] = None
+    cover_url: Optional[str] = None
 
 
 class TowerCreate(BaseModel):
@@ -147,15 +152,6 @@ class TourConfig(BaseModel):
 
 
 # --- Media ---
-class MediaType(str, enum.Enum):
-    MODEL_3D = "model_3d"
-    FLOOR_PLAN = "floor_plan"
-    PHOTO = "photo"
-    CAPTURE_360 = "capture_360"
-    AR_PACK = "ar_pack"
-    INTERIOR_SET = "interior_set"
-
-
 class MediaAssetCreate(BaseModel):
     media_type: MediaType
     title: str = ""

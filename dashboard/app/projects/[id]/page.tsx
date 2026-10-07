@@ -89,14 +89,14 @@ export default function ProjectDetailPage() {
         <>
           <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <Link href="/" className="text-xs font-medium text-slate-400 hover:text-slate-600">
+              <Link href="/" className="text-xs font-medium text-slate-400 transition-colors hover:text-slate-600">
                 ← Portfolio
               </Link>
-              <h1 className="mt-1 flex items-center gap-2 text-xl font-semibold text-slate-900">
+              <h1 className="mt-1.5 flex items-center gap-3 font-serif text-2xl font-semibold tracking-tight text-slate-900">
                 {project.name}
                 <Badge label={project.status} kind={project.status} />
               </h1>
-              <p className="text-sm text-slate-500">
+              <p className="mt-1 text-sm text-slate-500">
                 {[project.locality, project.city].filter(Boolean).join(", ")} · {project.property_type.replaceAll("_", " ")}
               </p>
             </div>
@@ -105,7 +105,7 @@ export default function ProjectDetailPage() {
                 value={project.status}
                 disabled={savingStatus}
                 onChange={(e) => void changeStatus(e.target.value as ProjectStatus)}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm"
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 shadow-sm transition-all duration-150 hover:border-slate-300 focus:border-orange-500 focus:ring-2 focus:ring-orange-100 focus:outline-none"
               >
                 {STATUSES.map((status) => (
                   <option key={status} value={status}>
@@ -116,15 +116,15 @@ export default function ProjectDetailPage() {
             </div>
           </div>
 
-          <div className="mb-5 flex gap-1 border-b border-slate-200">
+          <div className="mb-6 flex gap-1 rounded-xl border border-slate-200/80 bg-white/80 p-1 shadow-sm backdrop-blur-sm">
             {TABS.map((item) => (
               <button
                 key={item.key}
                 onClick={() => setTab(item.key)}
-                className={`-mb-px rounded-t-lg px-4 py-2 text-sm font-medium transition ${
+                className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-all duration-150 ${
                   tab === item.key
-                    ? "border-b-2 border-orange-600 text-orange-700"
-                    : "text-slate-500 hover:text-slate-800"
+                    ? "bg-orange-600 text-white shadow-sm shadow-orange-500/20"
+                    : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
                 }`}
               >
                 {item.label}

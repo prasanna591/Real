@@ -40,3 +40,11 @@ export function formatDateTimeLocal(date: Date): string {
     date.getHours(),
   )}:${pad(date.getMinutes())}`;
 }
+
+export function formatCount(value: number | null | undefined): string {
+  const n = Number(value ?? 0);
+  if (Number.isNaN(n)) return '0';
+  if (n >= 1000000) return `${trimZero(n / 1000000)}M`;
+  if (n >= 1000) return `${trimZero(n / 1000)}k`;
+  return String(n);
+}

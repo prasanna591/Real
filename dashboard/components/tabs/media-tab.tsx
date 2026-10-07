@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { buttonPrimary, Card, ErrorNote, Field, inputClass } from "@/components/ui";
-import { requireApi, type MediaAsset, type MediaType } from "@/lib/api";
+import { requireApi, uploadMedia, type MediaAsset, type MediaType } from "@/lib/api";
 
 const MEDIA_TYPES: Array<{ value: MediaType; label: string }> = [
   { value: "model_3d", label: "3D model (GLB)" },
@@ -19,7 +19,8 @@ const PREVIEWABLE = new Set<MediaType>(["photo", "model_3d", "floor_plan"]);
 export function MediaTab({ projectId }: { projectId: number }) {
   const [assets, setAssets] = useState<MediaAsset[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [draft, setDraft] = useState({ media_type: "photo", title: "", url: "" });
+  const [draft, setDraft] = useState({ media_type: "photo" as MediaType, title: "", url: "" });
+  const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
@@ -46,19 +47,29 @@ export function MediaTab({ projectId }: { projectId: number }) {
     }
   };
 
+  const tryUpload = async (type: MediaType, title: string, file: File) => {
+    await uploadMedia(projectId, type, file, title.trim() || file.name);
+  };
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setBusy(true);
     try {
-      await requireApi(`/api/v1/projects/${projectId}/media`, {
-        method: "POST",
-        body: {
-          media_type: draft.media_type,
-          title: draft.title.trim() || draft.media_type.replaceAll("_", " "),
-          url: draft.url.trim(),
-        },
-      });
-      setDraft({ media_type: draft.media_type, title: "", url: "" });
+      if (file) {
+        await tryUpload(draft.media_type, draft.title, file);
+        setFile(null);
+        setDraft({ media_type: draft.media_type, title: "", url: "" });
+      } else {
+        await requireApi(`/api/v1/projects/${projectId}/media`, {
+          method: "POST",
+          body: {
+            media_type: draft.media_type,
+            title: draft.title.trim() || draft.media_type.replaceAll("_", " "),
+            url: draft.url.trim(),
+          },
+        });
+        setDraft({ media_type: draft.media_type, title: "", url: "" });
+      }
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not register asset");
@@ -78,14 +89,15 @@ export function MediaTab({ projectId }: { projectId: number }) {
       <Card className="max-w-2xl p-5">
         <p className="mb-1 text-sm font-semibold text-slate-800">Register media asset</p>
         <p className="mb-4 text-xs text-slate-400">
-          Point to a hosted URL — GLB models power the customer app&apos;s 3D walkthrough and AR.
+          Point to a hosted URL, or upload a file straight from your device — GLB models power the
+          customer app&apos;s 3D walkthrough and AR.
         </p>
         <form onSubmit={submit} className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Type">
               <select
                 value={draft.media_type}
-                onChange={(e) => setDraft({ ...draft, media_type: e.target.value })}
+                onChange={(e) => setDraft({ ...draft, media_type: e.target.value as MediaType })}
                 className={inputClass}
               >
                 {MEDIA_TYPES.map((type) => (
@@ -104,9 +116,8 @@ export function MediaTab({ projectId }: { projectId: number }) {
               />
             </Field>
           </div>
-          <Field label="URL">
+          <Field label="Hosted URL" hint={file ? "Upload selected — URL is ignored." : undefined}>
             <input
-              required
               type="url"
               value={draft.url}
               onChange={(e) => setDraft({ ...draft, url: e.target.value })}
@@ -114,8 +125,15 @@ export function MediaTab({ projectId }: { projectId: number }) {
               className={inputClass}
             />
           </Field>
+          <Field label="Upload file" hint="Optional — use instead of a hosted URL (photos, GLB, floor plans).">
+            <input
+              type="file"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className={inputClass}
+            />
+          </Field>
           <button type="submit" disabled={busy} className={buttonPrimary}>
-            {busy ? "Registering…" : "Register asset"}
+            {busy ? "Registering…" : file ? "Upload & register" : "Register asset"}
           </button>
         </form>
       </Card>

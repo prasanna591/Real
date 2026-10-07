@@ -125,6 +125,17 @@ class EnquiryStatusUpdate(BaseModel):
     status: EnquiryStatus
 
 
+class MyEnquiryRead(BaseModel):
+    """Customer-facing view of one of their enquiries (looked up by phone)."""
+
+    id: int
+    project_id: int
+    project_name: str
+    unit_id: Optional[int]
+    status: EnquiryStatus
+    created_at: datetime
+
+
 class SiteVisitCreate(BaseModel):
     project_id: int
     unit_id: Optional[int] = None
@@ -169,10 +180,11 @@ class SiteVisitUpdate(BaseModel):
 
 
 class AnalyticsEventCreate(BaseModel):
-    event_type: str = Field(pattern="^(view|walkthrough_complete|save|unsave|enquiry|site_visit_booked|booking|assistant_message)$")
+    event_type: str = Field(pattern="^(view|walkthrough_complete|save|unsave|enquiry|site_visit_booked|booking|assistant_message|share)$")
     project_id: int
     unit_id: Optional[int] = None
     session_id: str = ""
+    ref_user_id: Optional[int] = None
 
 
 class AnalyticsSummary(BaseModel):
@@ -182,6 +194,7 @@ class AnalyticsSummary(BaseModel):
     enquiries: int
     site_visits: int
     assistant_messages: int = 0
+    shares: int = 0
 
 
 class EnquiryNoteCreate(BaseModel):
@@ -200,4 +213,59 @@ class EnquiryNoteRead(BaseModel):
     enquiry_id: int
     builder_id: int
     content: str
+    created_at: datetime
+
+
+class ListingRequestCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    phone: str = Field(min_length=8, max_length=20)
+    email: str = ""
+    property_type: str = Field(default="", max_length=60)
+    bhk: Optional[int] = Field(default=None, ge=1, le=10)
+    city: str = Field(default="", max_length=100)
+    locality: str = Field(default="", max_length=200)
+    expected_price: str = Field(default="", max_length=40)
+    description: str = Field(default="", max_length=2000)
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        v = v.strip()
+        if not _PHONE_RE.match(v):
+            raise ValueError("Invalid phone number format")
+        return v
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Name cannot be blank")
+        return v
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        v = v.strip()
+        if v and not _EMAIL_RE.match(v):
+            raise ValueError("Invalid email format")
+        return v
+
+
+class ListingRequestRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    user_id: Optional[int]
+    name: str
+    phone: str
+    email: str
+    property_type: str
+    bhk: Optional[int]
+    city: str
+    locality: str
+    expected_price: str
+    description: str
+    images: list[str]
+    status: str
     created_at: datetime

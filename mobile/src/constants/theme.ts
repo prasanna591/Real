@@ -53,15 +53,15 @@ export const Motion = {
 
 export const Fonts = Platform.select({
   ios: {
-    sans: 'system-ui',
-    serif: 'ui-serif',
+    sans: 'DM Sans',
+    serif: 'Playfair Display',
     rounded: 'ui-rounded',
     mono: 'ui-monospace',
   },
   default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
+    sans: 'DM Sans',
+    serif: 'Playfair Display',
+    rounded: 'DM Sans',
     mono: 'monospace',
   },
   web: {
@@ -87,15 +87,33 @@ export const MaxContentWidth = 800;
 
 export const Radius = { sm: 10, md: 14, lg: 20, xl: 28 } as const;
 
+export const StatusColors = {
+  available: '#16A34A',
+  booked: '#D97706',
+  sold: '#DC2626',
+  draft: '#D97706',
+  active: '#16A34A',
+  sold_out: '#DC2626',
+} as const;
+
 export const Shadows = {
   card: (Platform.select({
-    web: { boxShadow: '0 8px 24px rgba(15, 23, 42, 0.08)' },
+    web: {
+      boxShadow:
+        '0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.06), 0 0 0 1px rgba(15,23,42,0.03)',
+    },
     ios: {
       shadowColor: '#0F172A',
-      shadowOpacity: 0.08,
-      shadowRadius: 24,
-      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.1,
+      shadowRadius: 20,
+      shadowOffset: { width: 0, height: 4 },
     },
-    android: { elevation: 3 },
+    android: { elevation: 4 },
+  }) ?? {}) as ViewStyle,
+  cardHover: (Platform.select({
+    web: {
+      boxShadow:
+        '0 2px 4px rgba(15,23,42,0.04), 0 8px 24px rgba(15,23,42,0.1), 0 0 0 1px rgba(15,23,42,0.04)',
+    },
   }) ?? {}) as ViewStyle,
 };

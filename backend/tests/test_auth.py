@@ -75,6 +75,7 @@ class TestAuthMe:
     def test_me_unauthenticated(self, client):
         resp = client.get("/api/v1/auth/me")
         assert resp.status_code == 401
+        assert resp.headers.get("www-authenticate") == "Bearer"
 
     def test_me_invalid_token(self, client):
         resp = client.get("/api/v1/auth/me", headers={

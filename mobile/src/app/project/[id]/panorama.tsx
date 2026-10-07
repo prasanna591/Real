@@ -15,7 +15,6 @@ import { ThemedView } from '@/components/themed-view';
 
 import { Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { trackEvent } from '@/lib/analytics';
 import { listMedia } from '@/services/api';
 import type { MediaAsset } from '@/types/api';
 
@@ -47,7 +46,6 @@ export default function PanoramaScreen() {
         if (pano) {
           setAsset(pano);
           setStatus('ready');
-          trackEvent({ eventType: 'view', projectId });
         } else {
           setStatus('missing');
         }

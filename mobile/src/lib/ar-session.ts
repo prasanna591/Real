@@ -1,11 +1,20 @@
 import { useCameraPermissions } from 'expo-camera';
-import { Accelerometer, Gyroscope, type AccelerometerMeasurement, type GyroscopeMeasurement } from 'expo-sensors';
+import {
+  Accelerometer,
+  Gyroscope,
+  Magnetometer,
+  type AccelerometerMeasurement,
+  type GyroscopeMeasurement,
+  type MagnetometerMeasurement,
+} from 'expo-sensors';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface DevicePose {
   position: { x: number; y: number; z: number };
   rotation: { x: number; y: number; z: number; w: number };
   angularVelocity: { x: number; y: number; z: number };
+  /** Compass heading in degrees (0-360) fused from the magnetometer. */
+  heading: number;
   timestamp: number;
 }
 
@@ -49,7 +58,8 @@ export function useARSession() {
   const listenersRef = useRef<{
     accel: ReturnType<typeof Accelerometer.addListener> | null;
     gyro: ReturnType<typeof Gyroscope.addListener> | null;
-  }>({ accel: null, gyro: null });
+    mag: ReturnType<typeof Magnetometer.addListener> | null;
+  }>({ accel: null, gyro: null, mag: null });
 
   // orientation accumulated from angular velocity (rad), zeroed at reset
   const orientationRef = useRef({ pitch: 0, yaw: 0, roll: 0 });
@@ -61,6 +71,8 @@ export function useARSession() {
   const positionRef = useRef({ x: 0, y: 0, z: 0 });
   const velocityRef = useRef({ x: 0, y: 0, z: 0 });
   const lastAccelTsRef = useRef(0);
+  // latest compass heading (degrees), fused from the magnetometer
+  const headingRef = useRef(0);
 
   const poseCallbacksRef = useRef<Set<PoseCallback>>(new Set());
   const runningRef = useRef(false);
@@ -72,6 +84,24 @@ export function useARSession() {
     };
   }, []);
 
+  // Shared pose emission used by the accelerometer (primary) or gyroscope (fallback).
+  const emitPose = useCallback((now: number) => {
+    const o = orientationRef.current;
+    const p = positionRef.current;
+    const pose: DevicePose = {
+      position: { x: p.x, y: p.y, z: p.z },
+      rotation: quaternionFromEuler(o.pitch, o.yaw, o.roll),
+      angularVelocity: { ...angularVelocityRef.current },
+      heading: headingRef.current,
+      timestamp: now,
+    };
+    poseRef.current = pose;
+    if (runningRef.current) {
+      poseCallbacksRef.current.forEach((cb) => cb(pose));
+    }
+    setState((prev) => ({ ...prev, pose, isTracking: true }));
+  }, []);
+
   const handleGyroscope = useCallback((data: GyroscopeMeasurement) => {
     // data is rad/s — keep the instantaneous value for the motion guardrail
     angularVelocityRef.current = { x: data.x, y: data.y, z: data.z };
@@ -81,6 +111,19 @@ export function useARSession() {
     o.pitch += data.x * dt;
     o.yaw += data.y * dt;
     o.roll += data.z * dt;
+
+    // If the accelerometer is unavailable, drive pose emission from the
+    // gyroscope so coverage still progresses (accelerometer is preferred).
+    if (!listenersRef.current.accel) {
+      emitPose(Date.now());
+    }
+  }, [emitPose]);
+
+  const handleMagnetometer = useCallback((data: MagnetometerMeasurement) => {
+    // Device-relative magnetic heading (degrees). Tilt compensation is handled
+    // implicitly by the coverage model which fuses orientation only.
+    const raw = (Math.atan2(data.y, data.x) * 180) / Math.PI;
+    headingRef.current = (raw + 360) % 360;
   }, []);
 
   const handleAccelerometer = useCallback((data: AccelerometerMeasurement) => {
@@ -111,22 +154,8 @@ export function useARSession() {
     p.y += v.y * clampDt;
     p.z += v.z * clampDt;
 
-    const o = orientationRef.current;
-    const pose: DevicePose = {
-      position: { x: p.x, y: p.y, z: p.z },
-      rotation: quaternionFromEuler(o.pitch, o.yaw, o.roll),
-      // THE FIX: angular velocity comes from the gyroscope, which is in rad/s
-      angularVelocity: { ...angularVelocityRef.current },
-      timestamp: now,
-    };
-
-    poseRef.current = pose;
-    if (runningRef.current) {
-      poseCallbacksRef.current.forEach((cb) => cb(pose));
-    }
-
-    setState((prev) => ({ ...prev, pose, isTracking: true }));
-  }, []);
+    emitPose(now);
+  }, [emitPose]);
 
   const startTracking = useCallback(async () => {
     if (!permission?.granted) {
@@ -136,20 +165,43 @@ export function useARSession() {
 
     Accelerometer.setUpdateInterval(SENSOR_UPDATE_INTERVAL);
     Gyroscope.setUpdateInterval(SENSOR_UPDATE_INTERVAL);
+    Magnetometer.setUpdateInterval(SENSOR_UPDATE_INTERVAL);
 
-    listenersRef.current.accel = Accelerometer.addListener(handleAccelerometer);
-    listenersRef.current.gyro = Gyroscope.addListener(handleGyroscope);
+    // Register each sensor independently so a missing/unavailable sensor (e.g. a
+    // device without a magnetometer) does not crash the whole scan session.
+    try {
+      listenersRef.current.accel = Accelerometer.addListener(handleAccelerometer);
+    } catch {
+      listenersRef.current.accel = null;
+    }
+    try {
+      listenersRef.current.gyro = Gyroscope.addListener(handleGyroscope);
+    } catch {
+      listenersRef.current.gyro = null;
+    }
+    try {
+      listenersRef.current.mag = Magnetometer.addListener(handleMagnetometer);
+    } catch {
+      listenersRef.current.mag = null;
+    }
+
+    // At least one motion sensor must be active for pose updates.
+    if (!listenersRef.current.accel && !listenersRef.current.gyro) {
+      return false;
+    }
+
     runningRef.current = true;
 
     setState((prev) => ({ ...prev, isReady: true, hasPermission: true }));
     return true;
-  }, [permission, requestPermission, handleAccelerometer, handleGyroscope]);
+  }, [permission, requestPermission, handleAccelerometer, handleGyroscope, handleMagnetometer]);
 
   const stopTracking = useCallback(() => {
     runningRef.current = false;
     listenersRef.current.accel?.remove();
     listenersRef.current.gyro?.remove();
-    listenersRef.current = { accel: null, gyro: null };
+    listenersRef.current.mag?.remove();
+    listenersRef.current = { accel: null, gyro: null, mag: null };
     setState((prev) => ({ ...prev, isTracking: false }));
   }, []);
 
@@ -160,6 +212,7 @@ export function useARSession() {
     positionRef.current = { x: 0, y: 0, z: 0 };
     velocityRef.current = { x: 0, y: 0, z: 0 };
     lastAccelTsRef.current = 0;
+    headingRef.current = 0;
     poseRef.current = null;
     setState((prev) => ({ ...prev, pose: null }));
   }, []);
@@ -168,6 +221,7 @@ export function useARSession() {
     return () => {
       listenersRef.current.accel?.remove();
       listenersRef.current.gyro?.remove();
+      listenersRef.current.mag?.remove();
     };
   }, []);
 

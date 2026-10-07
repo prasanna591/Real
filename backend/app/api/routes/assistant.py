@@ -2,14 +2,15 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from app.ai import agent as ai_agent
 from app.ai import fallback
 from app.core.database import get_db
+from app.core.events import log_event
 from app.core.rate_limit import limiter
 from app.models import EventType, Project
 from app.schemas import AssistantChatRequest, AssistantChatResponse
-from app.api.routes.engagement import _log
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 logger = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ async def chat(request: Request, payload: AssistantChatRequest, db: Session = De
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "At least one user message is required")
     last_user_message = user_messages[-1].content.strip()
 
-    if payload.project_id is not None and not db.get(Project, payload.project_id):
+    if payload.project_id is not None and not await run_in_threadpool(db.get, Project, payload.project_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
 
     reply: str | None = None
@@ -43,11 +44,15 @@ async def chat(request: Request, payload: AssistantChatRequest, db: Session = De
         except Exception:
             logger.exception("LLM assistant failed; falling back to grounded engine")
 
+    # The fallback engine and event logging are synchronous DB work — run them
+    # off the event loop so one slow query can't stall every request.
     if reply is None:
-        reply = fallback.answer(db, last_user_message, payload.project_id)
+        reply = await run_in_threadpool(fallback.answer, db, last_user_message, payload.project_id)
 
-    _log(db, EventType.ASSISTANT_MESSAGE, payload.project_id, None, payload.session_id)
-    db.commit()
+    await run_in_threadpool(
+        log_event, db, EventType.ASSISTANT_MESSAGE, payload.project_id, None, payload.session_id
+    )
+    await run_in_threadpool(db.commit)
 
     return AssistantChatResponse(reply=reply, engine=engine, project_id=payload.project_id)
 

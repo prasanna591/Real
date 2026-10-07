@@ -86,12 +86,49 @@ export async function api<T>(
   return data as T;
 }
 
+/** Upload a media file to a project via multipart form (auth-attached). */
+export async function uploadMedia(
+  projectId: number,
+  mediaType: MediaType,
+  file: File,
+  title?: string,
+): Promise<MediaAsset> {
+  const token = getToken();
+  const form = new FormData();
+  form.append("media_type", mediaType);
+  if (title) form.append("title", title);
+  form.append("file", file);
+
+  const response = await fetch(`${API_BASE_URL}/api/v1/projects/${projectId}/media/upload`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+    cache: "no-store",
+  });
+
+  let data: { detail?: unknown } | null = null;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+  if (!response.ok) {
+    const detail =
+      typeof data?.detail === "string"
+        ? data.detail
+        : `Upload failed (${response.status})`;
+    throw new ApiError(response.status, detail);
+  }
+  return data as unknown as MediaAsset;
+}
+
 // --- API types (mirror backend schemas) ---
 
 export type PropertyType = "luxury_apartment" | "villa" | "premium_residence" | "waterfront";
 export type ProjectStatus = "draft" | "active" | "sold_out";
 export type UnitStatus = "available" | "booked" | "sold";
 export type EnquiryStatus = "new" | "contacted" | "qualified" | "site_visit" | "booked" | "closed";
+export type VisitStatus = "scheduled" | "completed" | "cancelled";
 
 export interface BuilderUser {
   id: number;
@@ -177,6 +214,7 @@ export interface AnalyticsSummary {
   enquiries: number;
   site_visits: number;
   assistant_messages: number;
+  shares: number;
 }
 
 export interface ProjectSummary {
@@ -186,7 +224,7 @@ export interface ProjectSummary {
   city: string;
   property_type: PropertyType | null;
   status: ProjectStatus | null;
-  starting_price: number | null;
+  starting_price: string | null;
   unit_count: number;
   available_units: number;
 }
@@ -197,7 +235,7 @@ export interface Pipeline {
     name: string;
     phone: string;
     message: string | null;
-    status: string;
+    status: EnquiryStatus;
     created_at: string;
   }>;
   site_visits: Array<{
@@ -205,7 +243,7 @@ export interface Pipeline {
     name: string;
     phone: string;
     scheduled_at: string;
-    status: string;
+    status: VisitStatus;
   }>;
 }
 
