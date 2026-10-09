@@ -62,6 +62,7 @@ async function hydrateRows(userId: number): Promise<SavedRow[]> {
 
 export default function SavedScreen() {
   const router = useRouter();
+  const canGoBack = router.canGoBack();
   const theme = useTheme();
   const { user, isLoading: sessionLoading, toggle } = useSaved();
   const { signIn } = useSession();
@@ -126,6 +127,16 @@ export default function SavedScreen() {
     return (
       <ThemedView style={styles.container}>
         <SafeAreaView style={[styles.safeArea, styles.centerContent]} edges={['top']}>
+          {canGoBack ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              hitSlop={10}
+              onPress={() => router.back()}
+              style={styles.signInBack}>
+              <Ionicons name="chevron-back" size={26} color={theme.text} />
+            </Pressable>
+          ) : null}
           <ThemedView type="backgroundElement" style={styles.signInPrompt}>
             <ThemedText type="subtitle">Save your favourites</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
@@ -185,9 +196,20 @@ export default function SavedScreen() {
           refreshing={isLoading}
           onRefresh={load}
           ListHeaderComponent={
-            <ThemedText type="title" style={styles.title}>
-              Saved
-            </ThemedText>
+            <View style={styles.titleRow}>
+              {canGoBack ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Go back"
+                  hitSlop={10}
+                  onPress={() => router.back()}>
+                  <Ionicons name="chevron-back" size={26} color={theme.text} />
+                </Pressable>
+              ) : null}
+              <ThemedText type="title" style={styles.title}>
+                Saved
+              </ThemedText>
+            </View>
           }
           renderItem={({ item }) => (
             <Pressable
@@ -279,6 +301,15 @@ const styles = StyleSheet.create({
     lineHeight: 40,
     paddingTop: Spacing.three,
     paddingBottom: Spacing.four,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+  },
+  signInBack: {
+    alignSelf: 'flex-start',
+    marginBottom: Spacing.two,
   },
   list: {
     paddingHorizontal: Spacing.four,

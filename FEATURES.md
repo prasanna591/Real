@@ -23,9 +23,10 @@ A living record of every feature and update added to the project so far.
 - Social priority = **Share property**.
 
 ### 1.4 Ionicons bottom navigation (`components/app-tabs.tsx`)
-- Replaced PNG template icons with Ionicons **vector icons** loaded via the stable `expo-router` `Tabs` API (outline default, filled selected):
-  - Home `home-outline`/`home`, Saved `heart-outline`/`heart`, Scans `scan-outline`/`scan`, Account `person-outline`/`person`.
-- **Expo Go compatibility (2026 fix):** the app originally used `expo-router/unstable-native-tabs` (`NativeTabs.Trigger.VectorIcon`), which requires a dev build and rendered a **blank page in Expo Go**. `app-tabs.tsx` now uses the stable JS `Tabs` — works in Expo Go and standalone. Web variant (`app-tabs.web.tsx`, expo-router/ui) unchanged — 3 tabs (no Scans).
+- Replaced PNG template icons with Ionicons **vector icons** loaded via the stable `expo-router` `Tabs` API (outline default, filled selected).
+- **Current tab set (EYD navigation consolidation):** Home `home-outline`, Plan `compass-outline`, Project `business-outline` → `/build` dashboard, Network `people-outline` → professional network, Profile `person-outline` (`(tabs)/account.tsx`). Same 5 tabs on native and web (`app-tabs.web.tsx`, expo-router/ui).
+- **Saved** and **Scans** are no longer tabs — they are root stack routes (`/saved`, `/scans`) reachable from the heart icons on Home/project cards (Saved also hosts one-tap sign-in) and from the Home **"Room scans"** CTA row. Their screens are unchanged.
+- **Expo Go compatibility (2026 fix):** the app originally used `expo-router/unstable-native-tabs` (`NativeTabs.Trigger.VectorIcon`), which requires a dev build and rendered a **blank page in Expo Go**. `app-tabs.tsx` now uses the stable JS `Tabs` — works in Expo Go and standalone.
 
 ---
 
@@ -169,13 +170,13 @@ From `backend/app/api/routes/engagement.py`:
 - Expandable inline calculator on unit/project pages — principal (defaulted to ~80% of price), **rate slider, tenure presets (10/15/20/30 yr)**.
 - Computes monthly EMI, total interest, total payable via `calculateEMI`; formats in ₹L/₹Cr.
 
-## 16. Saved / shortlist — `hooks/use-saved.ts` + tabs/saved
+## 16. Saved / shortlist — `hooks/use-saved.ts` + `app/saved.tsx`
 
-- Per-user save/unsave (project or unit) via `POST/DELETE /saved` + `GET /users/{id}/saved`; login-gated. `SavedItem` listed in the **Saved** tab.
+- Per-user save/unsave (project or unit) via `POST/DELETE /saved` + `GET /users/{id}/saved`; login-gated. `SavedItem` listed on the **Saved** screen (root route `/saved` — reached from the heart icons on Home/project cards; also hosts one-tap phone sign-in).
 
-## 17. Account — profile/sign-in — `app/(tabs)/account.tsx`
+## 17. Profile — profile/sign-in — `app/(tabs)/account.tsx`
 
-- Guest account screen; in-place **name/phone/email sign-in** (idempotent `POST /users`), persisted via `session.tsx`; shows saved count / actions and **sign out**.
+- Guest profile screen (tab label **Profile**); in-place **name/phone/email sign-in** (idempotent `POST /users`), persisted via `session.tsx`; shows saved count / actions and **sign out**.
 
 ## 18. Mobile builder console — `app/builder/*`
 

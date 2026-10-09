@@ -21,19 +21,21 @@ export function PressableScale({
   children,
   disabled,
   accessibilityLabel,
+  accessibilityRole = 'button',
 }: {
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
   children: React.ReactNode;
   disabled?: boolean;
   accessibilityLabel?: string;
+  accessibilityRole?: 'button' | 'link';
 }) {
   const scale = useSharedValue(1);
   const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
   return (
     <Pressable
-      accessibilityRole="button"
+      accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
       disabled={disabled}

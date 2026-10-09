@@ -224,8 +224,8 @@ export default function HomeScreen() {
 
   const handleFollow = async (builderId: number) => {
     if (!user) {
-      // Saved tab hosts the one-tap phone sign-in.
-      router.push('/(tabs)/saved');
+      // Saved screen hosts the one-tap phone sign-in.
+      router.push('/saved');
       return;
     }
     await toggle(builderId);
@@ -381,6 +381,26 @@ export default function HomeScreen() {
           <ThemedText type="smallBold">Own a property?</ThemedText>
           <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
             List it free and reach thousands of buyers
+          </ThemedText>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />
+      </Pressable>
+
+      {/* Room scans entry */}
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => router.push('/scans')}
+        style={({ pressed }) => [
+          styles.postCta,
+          { backgroundColor: theme.backgroundElement, borderColor: theme.border, opacity: pressed ? 0.85 : 1 },
+        ]}>
+        <View style={[styles.postCtaIcon, { backgroundColor: theme.primarySoft }]}>
+          <Ionicons name="scan-outline" size={20} color={theme.primary} />
+        </View>
+        <View style={styles.postCtaText}>
+          <ThemedText type="smallBold">Room scans</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+            Capture AR walkthroughs of any space
           </ThemedText>
         </View>
         <Ionicons name="chevron-forward" size={18} color={theme.textSecondary} />

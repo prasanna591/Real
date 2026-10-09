@@ -10,9 +10,10 @@ import { useTheme } from '@/hooks/use-theme';
 
 const TABS = [
   { name: 'index', href: '/', label: 'Home', icon: 'home-outline' as const },
-  { name: 'saved', href: '/saved', label: 'Saved', icon: 'heart-outline' as const },
-  { name: 'scans', href: '/scans', label: 'Scans', icon: 'scan-outline' as const },
-  { name: 'account', href: '/account', label: 'Account', icon: 'person-outline' as const },
+  { name: 'plan', href: '/plan', label: 'Plan', icon: 'compass-outline' as const },
+  { name: 'project', href: '/project', label: 'Project', icon: 'business-outline' as const },
+  { name: 'network', href: '/network', label: 'Network', icon: 'people-outline' as const },
+  { name: 'account', href: '/account', label: 'Profile', icon: 'person-outline' as const },
 ] as const;
 
 export default function AppTabs() {

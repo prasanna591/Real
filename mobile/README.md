@@ -1,8 +1,12 @@
 # PropTech Customer + Builder App
 
-Expo (SDK 57) + React Native 0.86 + TypeScript app for the PropTech platform, built with [expo-router](https://docs.expo.dev/router/introduction/) file-based routing. Includes the customer journey **and** the builder console.
+Expo (SDK 57) + React Native 0.86 + TypeScript app for the PropTech platform, built with [expo-router](https://docs.expo.dev/router/introduction/) file-based routing. Includes the customer journey, the **EYD homeowner layer** (offline build/home manager), **and** the builder console.
 
-> Backend must be running first — see [`../backend/README.md`](../backend/README.md).
+> **Full reference:** see [`DOCUMENTATION.md`](./DOCUMENTATION.md) for every route, screen, layout,
+> interaction, data source and design token.
+
+> Backend must be running first — see [`../backend/README.md`](../backend/README.md). The EYD
+> (Build) layer is **offline-first** and works without the backend.
 
 ## Design System ("Executive Ember")
 
@@ -39,14 +43,20 @@ npx expo start --web      # or plain `npx expo start` for devices
 ## Screens & Journey
 
 ```
-(tabs)                     bottom tab bar (native: expo-router Tabs — works in Expo Go;
-                           web: expo-router/ui glass bar, 3 tabs — no Scans)
+(tabs)                     bottom tab bar — FIVE tabs
+                           (native: expo-router Tabs — works in Expo Go;
+                            web: expo-router/ui glass bar)
 ├── index            Home — projects listing + search/filters + pull-to-refresh,
 │                    builder follow rail + personalised feed (POST /feed)
-├── saved            Shortlist — saved projects & units, remove action
-├── scans            Room-scan entry — saved scans, "New scan" → project picker,
-│                    "Sync to builder" (multipart keyframes) & delete
-└── account          Phone sign-in / profile / sign-out
+├── plan             Plan — EYD 4-step home planner (scope, requirements, budget,
+│                    preferences) → "Generate my home plan"
+├── project          Project — EYD project dashboard (re-exports app/build/index)
+├── network          Network — EYD professionals directory (re-exports app/build/network)
+└── account          Profile — phone sign-in / profile / sign-out / my enquiries
+
+saved                Shortlist (ROOT route, not a tab) — saved projects & units
+scans                Room scans (ROOT route, not a tab) — saved scans, "New scan" →
+                     project picker, "Sync to builder" (multipart keyframes) & delete
 
 project/[id]/index   Details — hero gallery, specs, amenities, ♡ save, EMI calculator,
                      "Start 3D walkthrough" + "Ask AI assistant" CTAs
@@ -58,13 +68,27 @@ project/[id]/room-scan   Camera + IMU (accel/gyro/magnetometer) AR-lite capture:
 project/[id]/room-walkthrough   Pose-linked walkthrough playback of a saved scan
 project/[id]/panorama  360° equirectangular preview from capture_360 media
 project/[id]/assistant   AI Property Assistant — grounded chat (budget, units, EMI,
-                     family fit, views) with quick replies; every turn logged as
-                     assistant_message analytics
+                     family fit, views) with quick replies
 project/[id]/units   Availability grid — status dots, sort (price/BHK) + filter
 enquiry              Modal form → POST /enquiries
 book-visit           Modal form + quick-slot chips (tomorrow AM/PM, +2d)
 post-property        Customer "sell/list my property" → POST /listing-requests
                      (+ up to 5 photos via multipart image upload)
+
+EYD Build layer (offline-first; state in AsyncStorage "eyd.state.v1")
+build/index          Project dashboard — hero, budget/timeline, next action, alerts, hub
+build/roadmap        Stage roadmap + "Make current"
+build/budget         Expenses by category, filter chips, add/edit
+build/payments       Payment history + status filters
+build/progress       Overall % + per-stage bars + site updates (with photo)
+build/network/[id]   Professionals directory + profile (sample data, labelled)
+build/quotations     Quotations + comparison (≤3) + accept/reject, [id] detail
+build/materials      Material catalogue + your project list
+build/documents      Documents grouped by category, add/attach
+build/notifications  Alerts (mark all read) + activity feed
+build/intelligence   On-device Q&A grounded in your data (offline)
+build/passport       Home passport — details, plans, materials, team, payments,
+                     maintenance & warranties
 
 builder/login        Builder JWT sign-in (persisted session)
 builder/index        Portfolio list — status pills, availability counts
@@ -94,12 +118,21 @@ src/
 │   ├── CoverageHUD.tsx     Live scan overlay — segment dome + compass + coverage %
 │   ├── ScanTimer.tsx / MotionIndicator.tsx   Room-scan chrome
 │   ├── text-field.tsx      Labelled input
+│   ├── eyd/                EYD kit — ui.tsx, screen.tsx, sheet.tsx, alert-row.tsx
 │   └── ui/                 Themed primitives (collapsible, themed-text/view, tabs)
-├── constants/theme.ts      Colors, Gradients, Motion, Spacing, Radius, Shadows
+├── constants/
+│   ├── theme.ts            Executive Ember: Colors, Gradients, Motion, Spacing, Radius, Shadows
+│   └── eyd.ts              Deep Navy / Electric Blue EYD tokens + radii/spacing/tones
 ├── hooks/
 │   ├── use-saved.ts        Save/unsave state machine (optimistic toggle)
-│   ├── use-theme.ts / use-color-scheme.ts
+│   ├── use-eyd-theme.ts    EYD tokens by color scheme
+│   └── use-theme.ts / use-color-scheme.ts
 ├── lib/
+│   ├── eyd/                Offline homeowner layer:
+│   │   ├── store.tsx       EyDProvider + useEyD (eyd.state.v1 persistence, update/reset)
+│   │   ├── types.ts/seed.ts/selectors.ts/meta.ts/format.ts   domain, seed, derived, labels
+│   │   ├── intelligence.ts On-device Q&A grounded in state
+│   │   └── materials-repo.ts  Catalogue/project-list selectors
 │   ├── config.ts           API base URL from EXPO_PUBLIC_API_URL
 │   ├── http.ts             fetch wrapper: timeouts, JSON errors, Bearer token injection
 │   ├── session.tsx         Persisted customer identity (passwordless phone sign-in)
@@ -111,8 +144,7 @@ src/
 │   ├── ar-session.ts       Camera + IMU session (per-sensor try/catch, compass heading)
 │   ├── coverage-grid.ts    8 yaw × 3 pitch segment coverage grid (24 segs, ≥85% done)
 │   ├── motion-quality.ts   Slow/blurry frame guardrails
-│   ├── keyframe-selector.ts / scan-storage.ts   Keyframe & local scan persistence
-│   └── motion-quality.ts
+│   └── keyframe-selector.ts / scan-storage.ts   Keyframe & local scan persistence
 ├── services/
 │   ├── api.ts              Customer-facing endpoint calls (incl. follow/feed, listing)
 │   ├── builder.ts          Builder console endpoint calls
@@ -167,6 +199,10 @@ Download the APK from the build page link onto your phone (allow "install unknow
 - **Home feed is batched**: the list endpoint returns `cover_url` per project (one photo query for the whole page) — cards never issue per-item media requests (removed the old N+1 `useMedia` fetch).
 - **Social follow state is server-authoritative**: `lib/follow.tsx` re-fetches the builder list after every toggle, so the feed and follow rail can't drift.
 - **Room scans stay on-device** until the user taps "Sync to builder" (multipart upload to `POST /room-scans`).
+- **EYD layer is fully offline**: all homeowner data lives in AsyncStorage (`eyd.state.v1`); the
+  intelligence assistant answers from local state, and materials/professional data is sample data
+  clearly labelled in the UI. Only `room_scans`, the EYD store, and customer/builder sessions use keys
+  listed in [`DOCUMENTATION.md` §14](./DOCUMENTATION.md#14-storage-keys--filesystem).
 
 ## Roadmap (this app)
 

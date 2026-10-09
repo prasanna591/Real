@@ -30,6 +30,7 @@ import type { Project } from '@/types/api';
 export default function ScansScreen() {
   const theme = useTheme();
   const router = useRouter();
+  const canGoBack = router.canGoBack();
   const [sessions, setSessions] = useState<ScanSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [syncingId, setSyncingId] = useState<string | null>(null);
@@ -193,9 +194,20 @@ export default function ScansScreen() {
       {/* Header + new scan CTA */}
       <SafeAreaView edges={['top']}>
         <View style={styles.header}>
-          <ThemedText type="title" style={styles.headerTitle}>
-            Scans
-          </ThemedText>
+          <View style={styles.headerLeft}>
+            {canGoBack ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Go back"
+                hitSlop={10}
+                onPress={() => router.back()}>
+                <Ionicons name="chevron-back" size={24} color={theme.text} />
+              </Pressable>
+            ) : null}
+            <ThemedText type="title" style={styles.headerTitle}>
+              Scans
+            </ThemedText>
+          </View>
           <Pressable
             accessibilityRole="button"
             onPress={openProjectPicker}
@@ -399,6 +411,12 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     width: '100%',
     alignSelf: 'center',
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+    flex: 1,
   },
   headerTitle: {
     fontSize: 28,

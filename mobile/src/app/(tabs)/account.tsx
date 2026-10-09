@@ -96,7 +96,7 @@ export default function AccountScreen() {
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <ThemedText type="title">Account</ThemedText>
+          <ThemedText type="title">Profile</ThemedText>
 
           {sessionLoading ? (
             <ActivityIndicator />

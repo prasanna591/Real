@@ -25,9 +25,10 @@ export default function AppTabs() {
         tabBarStyle: { backgroundColor: colors.backgroundElement },
       }}>
       <Tabs.Screen name="index" options={{ title: 'Home', tabBarLabel: 'Home', tabBarIcon: TabIcon('home-outline', 'home') }} />
-      <Tabs.Screen name="saved" options={{ title: 'Saved', tabBarLabel: 'Saved', tabBarIcon: TabIcon('heart-outline', 'heart') }} />
-      <Tabs.Screen name="scans" options={{ title: 'Scans', tabBarLabel: 'Scans', tabBarIcon: TabIcon('scan-outline', 'scan') }} />
-      <Tabs.Screen name="account" options={{ title: 'Account', tabBarLabel: 'Account', tabBarIcon: TabIcon('person-outline', 'person') }} />
+      <Tabs.Screen name="plan" options={{ title: 'Plan', tabBarLabel: 'Plan', tabBarIcon: TabIcon('compass-outline', 'compass') }} />
+      <Tabs.Screen name="project" options={{ title: 'Project', tabBarLabel: 'Project', tabBarIcon: TabIcon('business-outline', 'business') }} />
+      <Tabs.Screen name="network" options={{ title: 'Network', tabBarLabel: 'Network', tabBarIcon: TabIcon('people-outline', 'people') }} />
+      <Tabs.Screen name="account" options={{ title: 'Profile', tabBarLabel: 'Profile', tabBarIcon: TabIcon('person-outline', 'person') }} />
     </Tabs>
   );
 }

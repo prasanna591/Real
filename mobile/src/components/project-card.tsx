@@ -50,7 +50,7 @@ export function ProjectCard({
     if (!project.builder_id) return;
     if (!user) {
       // Saved tab hosts the one-tap phone sign-in.
-      router.push('/(tabs)/saved');
+      router.push('/saved');
       return;
     }
     await toggleFollow(project.builder_id);
@@ -74,7 +74,7 @@ export function ProjectCard({
   const handleSave = async () => {
     if (!user) {
       // Saved tab shows the one-tap phone sign-in, then lets them shortlist.
-      router.push('/(tabs)/saved');
+      router.push('/saved');
       return;
     }
     const wasSaved = isSaved({ projectId: project.id });
@@ -105,6 +105,7 @@ export function ProjectCard({
     <Entrance index={index}>
       <PressableScale
         onPress={() => router.push(`/project/${project.id}`)}
+        accessibilityRole="link"
         accessibilityLabel={`Open ${project.name}`}
         style={[styles.card, Shadows.card, { backgroundColor: theme.backgroundElement }]}>
         <View style={styles.imageWrap}>
